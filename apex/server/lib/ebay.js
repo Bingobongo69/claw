@@ -196,3 +196,25 @@ export async function reviseEbayItem({ itemId, title, description, price }) {
     </ReviseFixedPriceItemRequest>`;
   await callTradingApi("ReviseFixedPriceItem", xml);
 }
+
+export async function findCompletedItems({ keywords, limit = 15 }) {
+  if (!keywords) return [];
+  const params = new URLSearchParams({
+    "OPERATION-NAME": "findCompletedItems",
+    "SERVICE-VERSION": "1.13.0",
+    "SECURITY-APPNAME": EBAY_CLIENT_ID,
+    "RESPONSE-DATA-FORMAT": "JSON",
+    "REST-PAYLOAD": "true",
+    keywords,
+    "paginationInput.entriesPerPage": String(limit)
+  });
+  const res = await fetch(`https://svcs.ebay.com/services/search/FindingService/v1?${params.toString()}`);
+  if (!res.ok) throw new Error(`eBay finding API ${res.status}`);
+  const data = await res.json();
+  const items = data?.findCompletedItemsResponse?.[0]?.searchResult?.[0]?.item || [];
+  return items.map((item) => ({
+    title: item.title?.[0],
+    price: Number(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || 0),
+    endTime: item.listingInfo?.[0]?.endTime?.[0]
+  }));
+}

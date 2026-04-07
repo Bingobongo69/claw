@@ -3,7 +3,7 @@ import express from "express";
 import fetch from "node-fetch";
 import { z } from "zod";
 import { buildListingAudit } from "./lib/audit.js";
-import { reviseEbayItem } from "./lib/ebay.js";
+import { reviseEbayItem, findCompletedItems } from "./lib/ebay.js";
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -177,8 +177,8 @@ app.get("/sales", async (req, res) => {
     const data = await callSheets({ action: "getSales" });
     if (!data.ok) return res.status(500).json(data);
     const idx = Object.fromEntries((data.header || []).map((h, i) => [String(h).trim(), i]));
-    const iDate = idx["Datum"] ?? 0, iTitle = idx["Titel"] ?? idx["Title"] ?? 1, iProfit = idx["Gewinn"] ?? 8, iVk = idx["VK"] ?? 7, iOrder = idx["Order-ID"] ?? idx["OrderID"] ?? idx["ID"] ?? 9, iShipping = idx["Versand"] ?? 5, iFees = idx["Gebühr"] ?? 6;
-    const rows = (data.rows || []).filter((r) => String(r[iOrder] ?? "").trim() !== "").map((r) => ({ date: r[iDate], title: r[iTitle], profit: Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0, vk: Number(String(r[iVk] ?? "0").replace(",", ".")) || 0, shippingCost: Number(String(r[iShipping] ?? "0").replace(",", ".")) || 0, fees: Number(String(r[iFees] ?? "0").replace(",", ".")) || 0, orderId: String(r[iOrder] ?? "").trim() })).sort((a, b) => normalizeDateString(b.date).localeCompare(normalizeDateString(a.date)));
+    const iSku = idx["SKU"] ?? idx["Sku"] ?? idx["Artikelnummer"] ?? idx["Artikel-Nr"] ?? 2;
+    const rows = (data.rows || []).filter((r) => String(r[iOrder] ?? "").trim() !== "").map((r) => ({ date: r[iDate], title: r[iTitle], profit: Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0, vk: Number(String(r[iVk] ?? "0").replace(",", ".")) || 0, shippingCost: Number(String(r[iShipping] ?? "0").replace(",", ".")) || 0, fees: Number(String(r[iFees] ?? "0").replace(",", ".")) || 0, orderId: String(r[iOrder] ?? "").trim(), sku: String(r[iSku] ?? "").trim() })).sort((a, b) => normalizeDateString(b.date).localeCompare(normalizeDateString(a.date)));
     res.json({ ok: true, rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); }
 });
@@ -208,6 +208,22 @@ app.post("/command", async (req, res) => {
     if (body.command === "add_todo") { return res.json({ ok: true, command: body.command, result: await callSheets({ action: "addTodo", title: body.title || String(body.value || ""), note: body.note || "", status: "open", owner: "Raul" }) }); }
     res.status(400).json({ ok: false, error: "unsupported_command" });
   } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
+});
+
+app.post("/vision/analyze", async (req, res) => {
+  try {
+    const schema = z.object({ filename: z.string().optional(), size: z.number().optional() });
+    const body = schema.parse(req.body || {});
+    const base = (body.filename || "Produkt").replace(/\.[^.]+$/, "");
+    const tokens = base.split(/[-_\s]+/).filter(Boolean);
+    const productName = tokens.slice(0, 2).join(" ") || "Produkt";
+    const model = tokens.slice(2).join(" ") || "Modell X";
+    const condition = /neu/i.test(base) ? "Neu" : "Gebraucht";
+    const estimatedCost = Math.max(5, Math.round((body.size || 400000) / 80000));
+    res.json({ ok: true, productName, model, condition, estimatedCost });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: String(e.message || e) });
+  }
 });
 
 app.get("/audit/listings", async (req, res) => {
@@ -258,6 +274,38 @@ app.post("/audit/revise", async (req, res) => {
     const body = schema.parse(req.body);
     await reviseEbayItem({ itemId: body.listingId, title: body.title, description: body.description, price: body.price });
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.post("/audit/insight", async (req, res) => {
+  try {
+    const schema = z.object({
+      listingId: z.string().min(1),
+      title: z.string().optional(),
+      sku: z.string().optional(),
+      historyPrice: z.number().positive().optional(),
+      currentPrice: z.number().positive().optional()
+    });
+    const body = schema.parse(req.body || {});
+    const keywords = (body.sku && body.sku.slice(0, 80)) || body.title || "";
+    const completed = await findCompletedItems({ keywords, limit: 15 });
+    const competitorCount = completed.length;
+    const avgPrice = competitorCount ? completed.reduce((sum, item) => sum + item.price, 0) / competitorCount : null;
+    const demandHigh = Boolean(body.historyPrice) || competitorCount >= 5;
+    let basePrice = body.historyPrice ?? avgPrice ?? body.currentPrice ?? 0;
+    let adjustment = 0;
+    if (competitorCount < 3 && demandHigh) adjustment = 0.05;
+    else if (competitorCount > 10) adjustment = -0.02;
+    const suggestedPrice = Number((basePrice * (1 + adjustment)).toFixed(2));
+    const reasonParts = [];
+    if (competitorCount) reasonParts.push(`Basis: ${competitorCount} verkaufte Angebote (⌀ ${avgPrice ? avgPrice.toFixed(2) : "-"} €)`);
+    if (body.historyPrice) reasonParts.push(`Letzter Verkauf: ${body.historyPrice.toFixed(2)} €`);
+    if (adjustment > 0) reasonParts.push("Score hoch → +5 % Aufschlag");
+    if (adjustment < 0) reasonParts.push("Viele Wettbewerber → -2 %");
+    const reason = reasonParts.join(". ") || "Keine Vergleichsdaten gefunden";
+    res.json({ ok: true, competitorCount, averagePrice: avgPrice, demandHigh, suggestedPrice, reason });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
   }

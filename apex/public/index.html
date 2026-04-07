@@ -9,7 +9,6 @@
       --bg:#0f172a;
       --bg2:#111827;
       --card:rgba(255,255,255,0.08);
-      --card-strong:rgba(255,255,255,0.12);
       --border:rgba(255,255,255,0.10);
       --text:#e5eefc;
       --muted:#94a3b8;
@@ -23,22 +22,17 @@
     body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);color:var(--text)}
     .app{max-width:520px;margin:0 auto;min-height:100vh;padding:18px 16px 96px;position:relative}
     .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    .brand{display:flex;align-items:center;gap:12px}.logo{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,#60a5fa,#2563eb);box-shadow:var(--shadow)}
     .title{font-size:22px;font-weight:700}.subtitle{font-size:12px;color:var(--muted)}
     .iconBtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(18px);color:var(--text)}
     .glass{background:var(--card);border:1px solid var(--border);backdrop-filter:blur(18px);box-shadow:var(--shadow);border-radius:var(--radius)}
     .card{padding:16px}.section{display:none}.section.active{display:block}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stack{display:grid;gap:12px}
-    .kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+    .kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
     .kpiVal{font-size:24px;font-weight:800;margin-top:8px}.kpiLabel{font-size:12px;color:var(--muted)}
-    .ringWrap{display:flex;justify-content:center;align-items:center;padding:8px 0 12px}
-    .ring{width:190px;height:190px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#60a5fa var(--pct), rgba(255,255,255,0.08) 0)}
-    .ringInner{width:146px;height:146px;border-radius:50%;background:#0f172a;display:grid;place-items:center;text-align:center;border:1px solid var(--border)}
-    .big{font-size:28px;font-weight:800}.small{font-size:12px;color:var(--muted)}
-    .chartBox{height:220px;padding-top:4px}.barRow{display:flex;align-items:end;gap:10px;height:150px;margin-top:16px}
-    .barCol{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px}.bar{width:100%;border-radius:14px 14px 6px 6px;background:linear-gradient(180deg,#60a5fa,#2563eb);min-height:10px}.bar2{background:linear-gradient(180deg,#34d399,#059669)}
-    .barLbl{font-size:11px;color:var(--muted)}.barVal{font-size:11px}
-    .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px}.saleTitle{font-size:14px;font-weight:600}.saleMeta,.taskMeta{font-size:12px;color:var(--muted)}
+    .progressSlim{height:10px;background:rgba(255,255,255,0.07);border-radius:999px;overflow:hidden;margin-top:10px}.progressSlim > div{height:100%;background:linear-gradient(90deg,#60a5fa,#22c55e);border-radius:999px}
+    .chartWrap{height:260px;margin-top:10px}.chartLegend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:8px}.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}
+    .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.saleTitle{font-size:13px;font-weight:600;color:var(--muted)}
+    .saleRevenue{font-size:24px;font-weight:800;line-height:1}.saleProfit{font-size:13px;margin-top:6px}.saleMeta,.taskMeta,.costRow{font-size:12px;color:var(--muted)} .costRow{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
     .profitPos{color:var(--green);font-weight:700}.profitNeg{color:var(--red);font-weight:700}
     label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input{width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)}
     button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155} .btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)}
@@ -57,10 +51,8 @@
     <div class="glass card stack">
       <div>
         <div class="subtitle">Ziel-Konfiguration</div>
-        <label>Jahresziel</label>
-        <input id="yearGoal" value="25000" />
-        <label>Tagesziel</label>
-        <input id="dayGoal" value="2000" />
+        <label>Jahresziel</label><input id="yearGoal" value="25000" />
+        <label>Tagesziel</label><input id="dayGoal" value="2000" />
       </div>
       <div>
         <div class="subtitle">Settings</div>
@@ -77,36 +69,25 @@
   <div class="app">
     <div class="top">
       <button class="iconBtn" id="openSidebar">☰</button>
-      <div style="text-align:right">
-        <div class="title">Apex</div>
-        <div class="subtitle" id="syncState">syncing…</div>
-      </div>
+      <div style="text-align:right"><div class="title">Apex</div><div class="subtitle" id="syncState">syncing…</div></div>
     </div>
 
     <section class="section active" id="dashboardSection">
-      <div class="ringWrap glass card">
-        <div class="ring" id="progressRing" style="--pct:0deg">
-          <div class="ringInner">
-            <div>
-              <div class="small">Tagesziel</div>
-              <div class="big" id="todayProgress">0€</div>
-              <div class="small" id="todaySub">von 2.000€</div>
-            </div>
-          </div>
-        </div>
+      <div class="glass card">
+        <div class="title" style="font-size:16px">7-Tage Überblick</div>
+        <div class="chartWrap" id="chartWrap"></div>
+        <div class="chartLegend"><span><span class="dot" style="background:#60a5fa"></span>Umsatz</span><span><span class="dot" style="background:#22c55e"></span>Gewinn</span></div>
+      </div>
+      <div class="glass card" style="margin-top:12px">
+        <div class="subtitle">Tages-Einstellziel</div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px"><strong id="todayProgressText">0%</strong><span class="subtitle" id="todaySub">0€ / 2.000€</span></div>
+        <div class="progressSlim"><div id="todayProgressBar" style="width:0%"></div></div>
       </div>
       <div class="kpis" id="kpis"></div>
-      <div class="glass card">
-        <div class="title" style="font-size:16px">Profit / Revenue</div>
-        <div class="chartBox" id="chartBox"></div>
-      </div>
     </section>
 
     <section class="section" id="salesSection">
-      <div class="glass card" style="margin-bottom:12px">
-        <div class="title" style="font-size:16px">Sales</div>
-        <div class="subtitle">Nur Einträge mit gültiger Order-ID zählen</div>
-      </div>
+      <div class="glass card" style="margin-bottom:12px"><div class="title" style="font-size:16px">Sales</div><div class="subtitle">Nur valide Order-IDs</div></div>
       <div class="list" id="salesList"></div>
     </section>
 
@@ -117,18 +98,21 @@
           <div><label>VK</label><input id="calcVk" type="number" value="25" /></div>
           <div><label>EK</label><input id="calcEk" type="number" value="8" /></div>
         </div>
-        <div><label>SKU (für Versand via _VK / _VP)</label><input id="calcSku" value="01_01_01_01_EK2_VK_5" /></div>
+        <div class="row">
+          <div><label>Versand</label><input id="calcShipping" type="number" value="0" /></div>
+          <div><label>Sonstige Kosten</label><input id="calcOther" type="number" value="0" /></div>
+        </div>
         <button id="calcBtn">Berechnen</button>
         <div class="calcResult" id="calcResult">Noch keine Berechnung.</div>
       </div>
     </section>
 
-    <section class="section" id="tasksSection">
+    <section class="section" id="goalsSection">
       <div class="glass card stack">
-        <div class="title" style="font-size:16px">Tasks</div>
-        <div class="row"><input id="todoTitle" placeholder="Neue Aufgabe" /><button id="todoBtn">Add</button></div>
+        <div class="title" style="font-size:16px">Goals</div>
+        <div class="subtitle">Jahr / Tag / Profit Targets</div>
+        <div id="goalsSummary"></div>
       </div>
-      <div class="list" id="taskList" style="margin-top:12px"></div>
     </section>
   </div>
 
@@ -136,62 +120,80 @@
     <button class="tabBtn active" data-tab="dashboardSection">Dashboard</button>
     <button class="tabBtn" data-tab="salesSection">Sales</button>
     <button class="tabBtn" data-tab="calcSection">Calc</button>
-    <button class="tabBtn" data-tab="tasksSection">Tasks</button>
+    <button class="tabBtn" data-tab="goalsSection">Goals</button>
   </nav>
 
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    const state = { metrics:null, sales:null, todos:null, settings:null, yearGoal:25000, dayGoal:2000 };
-
-    async function api(url, opts) {
-      const res = await fetch(url, opts);
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    }
+    const state = { metrics:null, sales:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000 };
+    async function api(url, opts) { const res = await fetch(url, opts); if (!res.ok) throw new Error(await res.text()); return res.json(); }
     const euro = (v) => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(v||0));
-    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('de-DE') : '-';
+
+    function toDateString(input) {
+      if (!input) return '';
+      const d = new Date(input);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+      const s = String(input).trim();
+      const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+      if (m) return new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00Z`).toISOString().slice(0,10);
+      return s.slice(0,10);
+    }
 
     function setLoading() {
       $('kpis').innerHTML = Array.from({length:4}).map(()=>`<div class="glass card skeleton" style="height:96px"></div>`).join('');
-      $('salesList').innerHTML = Array.from({length:5}).map(()=>`<div class="glass sale skeleton" style="height:76px"></div>`).join('');
-      $('taskList').innerHTML = Array.from({length:4}).map(()=>`<div class="glass task skeleton" style="height:74px"></div>`).join('');
-      $('chartBox').innerHTML = `<div class="skeleton" style="height:180px;border-radius:16px"></div>`;
+      $('salesList').innerHTML = Array.from({length:5}).map(()=>`<div class="glass sale skeleton" style="height:100px"></div>`).join('');
+      $('chartWrap').innerHTML = `<div class="skeleton" style="height:220px;border-radius:16px"></div>`;
     }
 
-    function calcTodayRevenue(rows) {
+    function getTodayListingValue() {
+      const rows = state.inventory || [];
       const today = new Date().toISOString().slice(0,10);
-      return rows.filter(r => String(r.date || '').slice(0,10) === today).reduce((a,r)=>a + Number(r.vk||0),0);
+      return rows.filter(r => toDateString(r.date) === today).reduce((sum, r) => sum + Number(r.listPrice || 0), 0);
     }
 
     function renderDashboard() {
       const m = state.metrics;
-      const todayRevenue = calcTodayRevenue(state.sales || []);
-      const pct = Math.max(0, Math.min(1, todayRevenue / state.dayGoal));
-      $('progressRing').style.setProperty('--pct', `${pct * 360}deg`);
-      $('todayProgress').textContent = euro(todayRevenue);
-      $('todaySub').textContent = `von ${euro(state.dayGoal)}`;
+      const todayValue = getTodayListingValue();
+      const pct = Math.max(0, Math.min(100, (todayValue / state.dayGoal) * 100));
+      $('todayProgressText').textContent = `${pct.toFixed(0)}%`;
+      $('todaySub').textContent = `${euro(todayValue)} / ${euro(state.dayGoal)}`;
+      $('todayProgressBar').style.width = `${pct}%`;
       $('kpis').innerHTML = [
         ['Monatsgewinn', euro(m.monthProfit)],
         ['Gesamtgewinn', euro(m.totalProfit)],
         ['GKV Rest', euro(m.gkvRemaining)],
-        ['Verkäufe', m.salesCount],
+        ['Sales', m.salesCount],
       ].map(([k,v])=>`<div class="glass card"><div class="kpiLabel">${k}</div><div class="kpiVal">${v}</div></div>`).join('');
 
-      const sales = state.sales || [];
-      const recent = sales.slice(0,7).reverse();
-      const maxProfit = Math.max(1, ...recent.map(r => Math.abs(Number(r.profit)||0)));
-      const maxRevenue = Math.max(1, ...recent.map(r => Math.abs(Number(r.vk)||0)));
-      $('chartBox').innerHTML = `
-        <div class="barRow">
-          ${recent.map(r => `
-            <div class="barCol">
-              <div class="barVal">${euro(r.profit)}</div>
-              <div class="bar" style="height:${Math.max(10,(Math.abs(r.profit)/maxProfit)*110)}px"></div>
-              <div class="bar bar2" style="height:${Math.max(10,(Math.abs(r.vk)/maxRevenue)*60)}px"></div>
-              <div class="barLbl">${fmtDate(r.date).slice(0,5)}</div>
-            </div>
-          `).join('')}
-        </div>`;
+      const rows = state.sales || [];
+      const last7 = Array.from({length:7}).map((_, i) => {
+        const d = new Date(); d.setUTCDate(d.getUTCDate() - (6-i));
+        const key = d.toISOString().slice(0,10);
+        const dayRows = rows.filter(r => toDateString(r.date) === key);
+        return {
+          day: key.slice(5),
+          revenue: dayRows.reduce((a,r)=>a+Number(r.vk||0),0),
+          profit: dayRows.reduce((a,r)=>a+Number(r.profit||0),0),
+        };
+      });
+
+      const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
+      ReactDOM.createRoot($('chartWrap')).render(
+        React.createElement(ResponsiveContainer, { width:'100%', height:220 },
+          React.createElement(BarChart, { data:last7 },
+            React.createElement(XAxis, { dataKey:'day', stroke:'#94a3b8', tick:{fill:'#94a3b8', fontSize:11} }),
+            React.createElement(YAxis, { stroke:'#94a3b8', tick:{fill:'#94a3b8', fontSize:11} }),
+            React.createElement(Tooltip, { contentStyle:{background:'#0f172a',border:'1px solid rgba(255,255,255,0.12)',borderRadius:'12px'} }),
+            React.createElement(Bar, { dataKey:'revenue', fill:'#60a5fa', radius:[6,6,0,0] }),
+            React.createElement(Bar, { dataKey:'profit', fill:'#22c55e', radius:[6,6,0,0] })
+          )
+        )
+      );
+
+      $('goalsSummary').innerHTML = `<div class="stack"><div>Jahresziel: <strong>${euro(state.yearGoal)}</strong></div><div>Tagesziel: <strong>${euro(state.dayGoal)}</strong></div><div>Profit Goal: <strong>${euro(m.roadTo15kGoal)}</strong></div><div>Fortschritt: <strong>${euro(m.roadTo15kProgress)}</strong></div></div>`;
     }
 
     function renderSales() {
@@ -201,113 +203,55 @@
           <div class="saleTop">
             <div>
               <div class="saleTitle">${r.title || '-'}</div>
-              <div class="saleMeta">${fmtDate(r.date)} · ${r.orderId || '-'}</div>
+              <div class="saleRevenue">${euro(r.vk)}</div>
+              <div class="saleProfit ${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">Gewinn: ${euro(r.profit)}</div>
             </div>
-            <div class="${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">${euro(r.profit)}</div>
+            <div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}</div>
           </div>
+          <div class="costRow"><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)}</span></div>
         </div>`).join('') : `<div class="glass sale">Keine gültigen Sales.</div>`;
     }
 
-    function renderTasks() {
-      const rows = state.todos || [];
-      $('taskList').innerHTML = rows.length ? rows.map(r => `
-        <div class="glass task">
-          <div class="taskTop">
-            <div>
-              <div class="saleTitle">${r.title}</div>
-              <div class="taskMeta">${r.status} · ${r.owner}</div>
-            </div>
-            <div class="taskMeta">${fmtDate(r.createdAt)}</div>
-          </div>
-        </div>`).join('') : `<div class="glass task">Keine Tasks.</div>`;
-    }
-
-    async function loadSales() {
-      const raw = await api('/sales');
-      state.sales = raw.rows || [];
-    }
-
-    async function loadTodos() {
-      const raw = await api('/todos');
+    async function loadSales() { const raw = await api('/sales'); state.sales = raw.rows || []; }
+    async function loadInventory() {
+      const raw = await api('/inventory');
+      const idx = Object.fromEntries((raw.header || []).map((h, i) => [String(h).trim(), i]));
       const rows = raw.rows || [];
-      state.todos = rows.map(r => ({ createdAt:r[0], title:r[1], status:r[2], owner:r[3], note:r[4] }));
+      const dateIdx = idx['Datum'] ?? idx['Date'] ?? 5;
+      const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6;
+      state.inventory = rows.map(r => ({ date:r[dateIdx], listPrice:Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0 }));
     }
-
-    async function loadSettings() {
-      const raw = await api('/settings');
-      state.settings = raw.settings || {};
-      $('gkvLimit').value = state.settings.gkvLimit ?? 578;
-      $('profitGoal').value = state.settings.profitGoal ?? 15000;
-      $('defaultFeePct').value = state.settings.defaultFeePct ?? 12;
-      $('defaultFeeFix').value = state.settings.defaultFeeFix ?? 0.35;
-    }
-
+    async function loadSettings() { const raw = await api('/settings'); state.settings = raw.settings || {}; $('gkvLimit').value = state.settings.gkvLimit ?? 578; $('profitGoal').value = state.settings.profitGoal ?? 15000; $('defaultFeePct').value = state.settings.defaultFeePct ?? 12; $('defaultFeeFix').value = state.settings.defaultFeeFix ?? 0.35; }
     async function loadMetrics() { state.metrics = await api('/metrics'); }
 
     async function saveAll() {
-      state.yearGoal = Number($('yearGoal').value || 25000);
-      state.dayGoal = Number($('dayGoal').value || 2000);
-      const items = [
-        ['gkvLimit', Number($('gkvLimit').value)],
-        ['profitGoal', Number($('profitGoal').value)],
-        ['defaultFeePct', Number($('defaultFeePct').value)],
-        ['defaultFeeFix', Number($('defaultFeeFix').value)],
-      ];
-      for (const [key, value] of items) {
-        await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, value, type:'number', note:'Updated from Apex Fintech UI' }) });
-      }
-      await Promise.all([loadMetrics(), loadSettings()]);
-      renderDashboard();
-      toggleSidebar(false);
+      state.yearGoal = Number($('yearGoal').value || 25000); state.dayGoal = Number($('dayGoal').value || 2000);
+      const items = [['gkvLimit', Number($('gkvLimit').value)], ['profitGoal', Number($('profitGoal').value)], ['defaultFeePct', Number($('defaultFeePct').value)], ['defaultFeeFix', Number($('defaultFeeFix').value)]];
+      for (const [key, value] of items) await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, value, type:'number', note:'Updated from Apex UI' }) });
+      await Promise.all([loadMetrics(), loadSettings(), loadInventory()]); renderDashboard(); toggleSidebar(false);
     }
 
-    async function calc() {
-      const body = { expectedVk:Number($('calcVk').value), ek:Number($('calcEk').value), sku:$('calcSku').value };
-      const out = await api('/sourcing/check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-      $('calcBtn').className = out.go === 'GO' ? 'btnGreen' : 'btnRed';
-      $('calcResult').innerHTML = `<div class="${out.go === 'GO' ? 'profitPos' : 'profitNeg'}" style="font-size:20px;font-weight:800">${out.go}</div><div>Profit: ${euro(out.profit)}</div><div>Fees: ${euro(out.fees)}</div><div>Shipping: ${euro(out.shippingCost)}</div>`;
+    function calc() {
+      const vk = Number($('calcVk').value || 0); const ek = Number($('calcEk').value || 0); const shipping = Number($('calcShipping').value || 0); const other = Number($('calcOther').value || 0);
+      const fees = vk * 0.12 + 0.35;
+      const profit = vk - ek - fees - shipping - other;
+      const go = profit > 0 ? 'GO' : 'NO-GO';
+      $('calcBtn').className = profit > 0 ? 'btnGreen' : 'btnRed';
+      $('calcResult').innerHTML = `<div class="${profit > 0 ? 'profitPos' : 'profitNeg'}" style="font-size:20px;font-weight:800">${go}</div><div>Profit: ${euro(profit)}</div><div>Fees: ${euro(fees)}</div><div>Versand: ${euro(shipping)}</div><div>Sonstige: ${euro(other)}</div>`;
     }
 
-    async function addTask() {
-      const title = $('todoTitle').value.trim();
-      if (!title) return;
-      await api('/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, status:'open', owner:'Raul', note:'UI task' }) });
-      $('todoTitle').value = '';
-      await loadTodos();
-      renderTasks();
-    }
-
-    function toggleSidebar(show) {
-      $('sidebar').classList.toggle('open', show);
-      $('backdrop').classList.toggle('show', show);
-    }
+    function toggleSidebar(show) { $('sidebar').classList.toggle('open', show); $('backdrop').classList.toggle('show', show); }
 
     async function boot() {
       setLoading();
       try {
-        await Promise.all([loadMetrics(), loadSettings(), loadSales(), loadTodos()]);
-        renderDashboard();
-        renderSales();
-        renderTasks();
-        $('syncState').textContent = 'live sync';
-      } catch (e) {
-        $('syncState').textContent = 'sync error';
-        console.error(e);
-      }
+        await Promise.all([loadMetrics(), loadSettings(), loadSales(), loadInventory()]);
+        renderDashboard(); renderSales(); $('syncState').textContent = 'live sync';
+      } catch (e) { $('syncState').textContent = 'sync error'; console.error(e); }
     }
 
-    [...document.querySelectorAll('.tabBtn')].forEach(btn => btn.onclick = () => {
-      document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      btn.classList.add('active');
-      $(btn.dataset.tab).classList.add('active');
-    });
-    $('openSidebar').onclick = () => toggleSidebar(true);
-    $('closeSidebar').onclick = () => toggleSidebar(false);
-    $('backdrop').onclick = () => toggleSidebar(false);
-    $('saveAll').onclick = saveAll;
-    $('calcBtn').onclick = calc;
-    $('todoBtn').onclick = addTask;
+    [...document.querySelectorAll('.tabBtn')].forEach(btn => btn.onclick = () => { document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.section').forEach(s => s.classList.remove('active')); btn.classList.add('active'); $(btn.dataset.tab).classList.add('active'); });
+    $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc;
     boot();
   </script>
 </body>

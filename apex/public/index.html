@@ -5,219 +5,113 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Apex</title>
   <style>
-    :root {
-      --bg:#0f172a;
-      --bg2:#111827;
-      --card:rgba(255,255,255,0.08);
-      --border:rgba(255,255,255,0.10);
-      --text:#e5eefc;
-      --muted:#94a3b8;
-      --accent:#60a5fa;
-      --green:#22c55e;
-      --red:#ef4444;
-      --shadow:0 10px 30px rgba(0,0,0,0.25);
-      --radius:20px;
-    }
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);color:var(--text)}
-    .app{max-width:520px;margin:0 auto;min-height:100vh;padding:18px 16px 96px;position:relative}
-    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    .title{font-size:22px;font-weight:700}.subtitle{font-size:12px;color:var(--muted)}
-    .iconBtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(18px);color:var(--text)}
-    .glass{background:var(--card);border:1px solid var(--border);backdrop-filter:blur(18px);box-shadow:var(--shadow);border-radius:var(--radius)}
-    .card{padding:16px}.section{display:none}.section.active{display:block}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stack{display:grid;gap:12px}
-    .kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
-    .kpiVal{font-size:24px;font-weight:800;margin-top:8px}.kpiLabel{font-size:12px;color:var(--muted)}
-    .progressSlim{height:10px;background:rgba(255,255,255,0.07);border-radius:999px;overflow:hidden;margin-top:10px}.progressSlim > div{height:100%;background:linear-gradient(90deg,#60a5fa,#22c55e);border-radius:999px}
-    .chartWrap{height:260px;margin-top:10px}.chartLegend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:8px}.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}
-    .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.saleTitle{font-size:13px;font-weight:600;color:var(--muted)}
-    .saleRevenue{font-size:24px;font-weight:800;line-height:1}.saleProfit{font-size:13px;margin-top:6px}.saleMeta,.taskMeta,.costRow{font-size:12px;color:var(--muted)} .costRow{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
-    .profitPos{color:var(--green);font-weight:700}.profitNeg{color:var(--red);font-weight:700}
-    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input{width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)}
-    button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155} .btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)}
-    .calcResult{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
-    .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(490px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}
-    .tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
-    .sidebar{position:fixed;top:0;left:0;height:100vh;width:min(380px,88vw);background:rgba(15,23,42,0.96);backdrop-filter:blur(18px);border-right:1px solid var(--border);transform:translateX(-100%);transition:.25s;padding:18px;z-index:20}.sidebar.open{transform:translateX(0)}
-    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);opacity:0;pointer-events:none;transition:.2s;z-index:19}.backdrop.show{opacity:1;pointer-events:auto}
-    .skeleton{position:relative;overflow:hidden;background:rgba(255,255,255,0.05)} .skeleton::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);animation:shine 1.3s infinite}
-    @keyframes shine{100%{transform:translateX(100%)}}
+    :root { --bg:#0f172a; --bg2:#111827; --card:rgba(255,255,255,0.08); --border:rgba(255,255,255,0.10); --text:#e5eefc; --muted:#94a3b8; --accent:#60a5fa; --green:#22c55e; --red:#ef4444; --yellow:#f59e0b; --shadow:0 10px 30px rgba(0,0,0,0.25); --radius:20px; }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);color:var(--text)}
+    .app{max-width:520px;margin:0 auto;min-height:100vh;padding:18px 16px 96px;position:relative}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;color:var(--muted)}
+    .iconBtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(18px);color:var(--text)} .glass{background:var(--card);border:1px solid var(--border);backdrop-filter:blur(18px);box-shadow:var(--shadow);border-radius:var(--radius)}
+    .card{padding:16px}.section{display:none}.section.active{display:block}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stack{display:grid;gap:12px}.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.kpiVal{font-size:24px;font-weight:800;margin-top:8px}.kpiLabel{font-size:12px;color:var(--muted)}
+    .progressSlim{height:10px;background:rgba(255,255,255,0.07);border-radius:999px;overflow:hidden;margin-top:10px}.progressSlim>div{height:100%;background:linear-gradient(90deg,#60a5fa,#22c55e);border-radius:999px}
+    .goalItem{padding:12px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)} .goalHead{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}
+    .chartWrap{height:290px;margin-top:10px;display:grid;grid-template-columns:44px 1fr;gap:10px}.yAxis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-size:10px;color:var(--muted);padding:8px 0}.plot{position:relative;height:100%;border-left:1px solid rgba(255,255,255,0.12);border-bottom:1px solid rgba(255,255,255,0.12);padding:8px 0 24px}.gridLine{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,0.06)}
+    .bars{position:absolute;left:0;right:0;bottom:24px;top:8px;display:flex;gap:8px;align-items:flex-end}.barGroup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.barStack{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}.bar{width:9px;border-radius:6px 6px 3px 3px;min-height:4px}.barRev{background:#60a5fa}.barProfit{background:#22c55e}.barCost{background:#ef4444}.xLabel{font-size:10px;color:var(--muted);margin-top:6px}
+    .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}.chipRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);font-size:12px;color:var(--muted)}.chip.active{background:rgba(96,165,250,0.18);color:#dbeafe;border-color:rgba(96,165,250,0.4)}
+    .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.saleTitle{font-size:13px;font-weight:600;color:var(--muted)} .saleRevenue{font-size:24px;font-weight:800;line-height:1}.saleProfit{font-size:13px;margin-top:6px}.saleMeta,.taskMeta,.costRow{font-size:12px;color:var(--muted)} .costRow{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}.profitPos{color:var(--green);font-weight:700}.profitNeg{color:var(--red);font-weight:700}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input{width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)} button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155}.btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)} .calcResult{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
+    .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(490px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
+    .sidebar{position:fixed;top:0;left:0;height:100vh;width:min(380px,88vw);background:rgba(15,23,42,0.96);backdrop-filter:blur(18px);border-right:1px solid var(--border);transform:translateX(-100%);transition:.25s;padding:18px;z-index:20}.sidebar.open{transform:translateX(0)} .backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);opacity:0;pointer-events:none;transition:.2s;z-index:19}.backdrop.show{opacity:1;pointer-events:auto}
+    .skeleton{position:relative;overflow:hidden;background:rgba(255,255,255,0.05)}.skeleton::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);animation:shine 1.3s infinite}@keyframes shine{100%{transform:translateX(100%)}}
   </style>
 </head>
 <body>
-  <div class="sidebar" id="sidebar">
-    <div class="top" style="margin-bottom:20px"><div><div class="title">Menü</div><div class="subtitle">Settings & Ziele</div></div><button class="iconBtn" id="closeSidebar">✕</button></div>
-    <div class="glass card stack">
-      <div>
-        <div class="subtitle">Ziel-Konfiguration</div>
-        <label>Jahresziel</label><input id="yearGoal" value="25000" />
-        <label>Tagesziel</label><input id="dayGoal" value="2000" />
-      </div>
-      <div>
-        <div class="subtitle">Settings</div>
-        <label>GKV Limit</label><input id="gkvLimit" value="578" />
-        <label>Profit Goal</label><input id="profitGoal" value="15000" />
-        <label>Default Fee %</label><input id="defaultFeePct" value="12" />
-        <label>Default Fee Fix</label><input id="defaultFeeFix" value="0.35" />
-      </div>
-      <button id="saveAll">Speichern</button>
-    </div>
-  </div>
+  <div class="sidebar" id="sidebar"><div class="top" style="margin-bottom:20px"><div><div class="title">Menü</div><div class="subtitle">Settings & Ziele</div></div><button class="iconBtn" id="closeSidebar">✕</button></div><div class="glass card stack"><div><div class="subtitle">Ziel-Konfiguration</div><label>Jahresziel</label><input id="yearGoal" value="25000" /><label>Tagesziel</label><input id="dayGoal" value="2000" /></div><div><div class="subtitle">Settings</div><label>GKV Limit</label><input id="gkvLimit" value="578" /><label>Profit Goal</label><input id="profitGoal" value="15000" /><label>Default Fee %</label><input id="defaultFeePct" value="12" /><label>Default Fee Fix</label><input id="defaultFeeFix" value="0.35" /></div><button id="saveAll">Speichern</button></div></div>
   <div class="backdrop" id="backdrop"></div>
 
   <div class="app">
-    <div class="top">
-      <button class="iconBtn" id="openSidebar">☰</button>
-      <div style="text-align:right"><div class="title">Apex</div><div class="subtitle" id="syncState">syncing…</div></div>
-    </div>
+    <div class="top"><button class="iconBtn" id="openSidebar">☰</button><div style="text-align:right"><div class="title">Apex</div><div class="subtitle" id="syncState">syncing…</div></div></div>
 
     <section class="section active" id="dashboardSection">
-      <div class="glass card">
-        <div class="title" style="font-size:16px">7-Tage Überblick</div>
-        <div class="chartWrap" id="chartWrap"></div>
-        <div class="chartLegend"><span><span class="dot" style="background:#60a5fa"></span>Umsatz</span><span><span class="dot" style="background:#22c55e"></span>Gewinn</span></div>
-      </div>
-      <div class="glass card" style="margin-top:12px">
-        <div class="subtitle">Tages-Einstellziel</div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px"><strong id="todayProgressText">0%</strong><span class="subtitle" id="todaySub">0€ / 2.000€</span></div>
-        <div class="progressSlim"><div id="todayProgressBar" style="width:0%"></div></div>
-      </div>
+      <div class="glass card"><div class="title" style="font-size:16px">Performance Chart</div><div class="chipRow"><button class="chip active" data-range="7">7T</button><button class="chip" data-range="30">1M</button><button class="chip" data-range="90">Quartal</button><button class="chip" data-range="365">Jahr</button></div><div class="chartWrap" id="chartWrap"></div><div class="legend"><span><span class="dot" style="background:#60a5fa"></span>Umsatz</span><span><span class="dot" style="background:#22c55e"></span>Gewinn</span><span><span class="dot" style="background:#ef4444"></span>Kosten</span></div></div>
+      <div class="glass card" style="margin-top:12px"><div class="subtitle">Tages-Einstellziel</div><div style="display:flex;justify-content:space-between;margin-top:6px"><strong id="todayProgressText">0%</strong><span class="subtitle" id="todaySub">0€ / 2.000€</span></div><div class="progressSlim"><div id="todayProgressBar" style="width:0%"></div></div></div>
       <div class="kpis" id="kpis"></div>
     </section>
 
-    <section class="section" id="salesSection">
-      <div class="glass card" style="margin-bottom:12px"><div class="title" style="font-size:16px">Sales</div><div class="subtitle">Nur valide Order-IDs</div></div>
-      <div class="list" id="salesList"></div>
-    </section>
-
-    <section class="section" id="calcSection">
-      <div class="glass card stack">
-        <div class="title" style="font-size:16px">Smart Calc</div>
-        <div class="row">
-          <div><label>VK</label><input id="calcVk" type="number" value="25" /></div>
-          <div><label>EK</label><input id="calcEk" type="number" value="8" /></div>
-        </div>
-        <div class="row">
-          <div><label>Versand</label><input id="calcShipping" type="number" value="0" /></div>
-          <div><label>Sonstige Kosten</label><input id="calcOther" type="number" value="0" /></div>
-        </div>
-        <button id="calcBtn">Berechnen</button>
-        <div class="calcResult" id="calcResult">Noch keine Berechnung.</div>
-      </div>
-    </section>
-
-    <section class="section" id="goalsSection">
-      <div class="glass card stack">
-        <div class="title" style="font-size:16px">Goals</div>
-        <div class="subtitle">Jahr / Tag / Profit Targets</div>
-        <div id="goalsSummary"></div>
-      </div>
-    </section>
+    <section class="section" id="salesSection"><div class="glass card" style="margin-bottom:12px"><div class="title" style="font-size:16px">Sales</div><div class="subtitle">Nur valide Order-IDs</div></div><div class="list" id="salesList"></div></section>
+    <section class="section" id="calcSection"><div class="glass card stack"><div class="title" style="font-size:16px">Smart Calc</div><div class="row"><div><label>VK</label><input id="calcVk" type="number" value="25" /></div><div><label>EK</label><input id="calcEk" type="number" value="8" /></div></div><div class="row"><div><label>Versand</label><input id="calcShipping" type="number" value="0" /></div><div><label>Sonstige Kosten</label><input id="calcOther" type="number" value="0" /></div></div><button id="calcBtn">Berechnen</button><div class="calcResult" id="calcResult">Noch keine Berechnung.</div></div></section>
+    <section class="section" id="goalsSection"><div class="glass card stack"><div class="title" style="font-size:16px">Goals</div><div class="subtitle">Fortschritt je Ziel</div><div id="goalsSummary" class="stack"></div></div></section>
   </div>
 
-  <nav class="bottomTabs">
-    <button class="tabBtn active" data-tab="dashboardSection">Dashboard</button>
-    <button class="tabBtn" data-tab="salesSection">Sales</button>
-    <button class="tabBtn" data-tab="calcSection">Calc</button>
-    <button class="tabBtn" data-tab="goalsSection">Goals</button>
-  </nav>
+  <nav class="bottomTabs"><button class="tabBtn active" data-tab="dashboardSection">Dashboard</button><button class="tabBtn" data-tab="salesSection">Sales</button><button class="tabBtn" data-tab="calcSection">Calc</button><button class="tabBtn" data-tab="goalsSection">Goals</button></nav>
 
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    const state = { metrics:null, sales:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000 };
+    const state = { metrics:null, sales:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7 };
     async function api(url, opts) { const res = await fetch(url, opts); if (!res.ok) throw new Error(await res.text()); return res.json(); }
     const euro = (v) => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(v||0));
 
-    function toDateString(input) {
-      if (!input) return '';
-      const d = new Date(input);
-      if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
-      const s = String(input).trim();
-      const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-      if (m) return new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00Z`).toISOString().slice(0,10);
-      return s.slice(0,10);
-    }
+    function toDateString(input) { if (!input) return ''; const d = new Date(input); if (!isNaN(d.getTime())) return d.toISOString().slice(0,10); const s = String(input).trim(); const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if (m) return new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00Z`).toISOString().slice(0,10); return s.slice(0,10); }
+    function setLoading() { $('kpis').innerHTML = Array.from({length:4}).map(()=>`<div class="glass card skeleton" style="height:96px"></div>`).join(''); $('salesList').innerHTML = Array.from({length:5}).map(()=>`<div class="glass sale skeleton" style="height:100px"></div>`).join(''); $('chartWrap').innerHTML = `<div class="skeleton" style="height:220px;border-radius:16px"></div>`; }
+    function getTodayListingValue() { const rows = state.inventory || []; const today = new Date().toISOString().slice(0,10); return rows.filter(r => toDateString(r.date) === today).reduce((sum, r) => sum + Number(r.listPrice || 0), 0); }
 
-    function setLoading() {
-      $('kpis').innerHTML = Array.from({length:4}).map(()=>`<div class="glass card skeleton" style="height:96px"></div>`).join('');
-      $('salesList').innerHTML = Array.from({length:5}).map(()=>`<div class="glass sale skeleton" style="height:100px"></div>`).join('');
-      $('chartWrap').innerHTML = `<div class="skeleton" style="height:220px;border-radius:16px"></div>`;
-    }
-
-    function getTodayListingValue() {
-      const rows = state.inventory || [];
-      const today = new Date().toISOString().slice(0,10);
-      return rows.filter(r => toDateString(r.date) === today).reduce((sum, r) => sum + Number(r.listPrice || 0), 0);
-    }
-
-    function renderDashboard() {
-      const m = state.metrics;
-      const todayValue = getTodayListingValue();
-      const pct = Math.max(0, Math.min(100, (todayValue / state.dayGoal) * 100));
-      $('todayProgressText').textContent = `${pct.toFixed(0)}%`;
-      $('todaySub').textContent = `${euro(todayValue)} / ${euro(state.dayGoal)}`;
-      $('todayProgressBar').style.width = `${pct}%`;
-      $('kpis').innerHTML = [
-        ['Monatsgewinn', euro(m.monthProfit)],
-        ['Gesamtgewinn', euro(m.totalProfit)],
-        ['GKV Rest', euro(m.gkvRemaining)],
-        ['Sales', m.salesCount],
-      ].map(([k,v])=>`<div class="glass card"><div class="kpiLabel">${k}</div><div class="kpiVal">${v}</div></div>`).join('');
-
+    function buildBuckets(days) {
       const rows = state.sales || [];
-      const last7 = Array.from({length:7}).map((_, i) => {
-        const d = new Date(); d.setUTCDate(d.getUTCDate() - (6-i));
+      return Array.from({length:days}).map((_, i) => {
+        const d = new Date(); d.setUTCDate(d.getUTCDate() - (days - 1 - i));
         const key = d.toISOString().slice(0,10);
         const dayRows = rows.filter(r => toDateString(r.date) === key);
         return {
-          day: key.slice(5),
+          key,
+          label: days <= 31 ? key.slice(5) : key.slice(2,7),
           revenue: dayRows.reduce((a,r)=>a+Number(r.vk||0),0),
           profit: dayRows.reduce((a,r)=>a+Number(r.profit||0),0),
+          cost: dayRows.reduce((a,r)=>a+Number(r.shippingCost||0)+Number(r.fees||0),0),
         };
       });
+    }
 
-      const maxRevenue = Math.max(1, ...last7.map(x => x.revenue));
-      const maxProfit = Math.max(1, ...last7.map(x => x.profit));
-      $('chartWrap').innerHTML = `<div style="display:flex;align-items:end;gap:10px;height:220px;padding-top:16px">${last7.map(d => `
-        <div style="flex:1;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:8px;height:100%">
-          <div style="display:flex;gap:4px;align-items:end;height:160px;width:100%;justify-content:center">
-            <div title="Umsatz ${d.revenue}" style="width:16px;height:${Math.max(10,(d.revenue/maxRevenue)*150)}px;background:#60a5fa;border-radius:8px 8px 4px 4px"></div>
-            <div title="Gewinn ${d.profit}" style="width:16px;height:${Math.max(10,(d.profit/maxProfit)*150)}px;background:#22c55e;border-radius:8px 8px 4px 4px"></div>
-          </div>
-          <div style="font-size:11px;color:#94a3b8">${d.day}</div>
-        </div>`).join('')}</div>`;
+    function renderChart(days) {
+      const data = buildBuckets(days);
+      const maxVal = Math.max(1, ...data.flatMap(d => [d.revenue, d.profit, d.cost]));
+      const ticks = [1,0.75,0.5,0.25,0].map(p => Math.round(maxVal * p));
+      $('chartWrap').innerHTML = `
+        <div class="yAxis">${ticks.map(v => `<div>${euro(v)}</div>`).join('')}</div>
+        <div class="plot">
+          <div class="gridLine" style="top:8px"></div><div class="gridLine" style="top:25%"></div><div class="gridLine" style="top:50%"></div><div class="gridLine" style="top:75%"></div><div class="gridLine" style="bottom:24px"></div>
+          <div class="bars">${data.map(d => `
+            <div class="barGroup">
+              <div class="barStack">
+                <div class="bar barRev" style="height:${Math.max(4,(d.revenue/maxVal)*210)}px" title="Umsatz ${euro(d.revenue)}"></div>
+                <div class="bar barProfit" style="height:${Math.max(4,(d.profit/maxVal)*210)}px" title="Gewinn ${euro(d.profit)}"></div>
+                <div class="bar barCost" style="height:${Math.max(4,(d.cost/maxVal)*210)}px" title="Kosten ${euro(d.cost)}"></div>
+              </div>
+              <div class="xLabel">${d.label}</div>
+            </div>`).join('')}</div>
+        </div>`;
+    }
 
-      $('goalsSummary').innerHTML = `<div class="stack"><div>Jahresziel: <strong>${euro(state.yearGoal)}</strong></div><div>Tagesziel: <strong>${euro(state.dayGoal)}</strong></div><div>Profit Goal: <strong>${euro(m.roadTo15kGoal)}</strong></div><div>Fortschritt: <strong>${euro(m.roadTo15kProgress)}</strong></div></div>`;
+    function goalTemplate(label, current, target, color) {
+      const pct = target > 0 ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
+      return `<div class="goalItem"><div class="goalHead"><span>${label}</span><strong>${pct.toFixed(1)}%</strong></div><div class="subtitle">${euro(current)} / ${euro(target)}</div><div class="progressSlim"><div style="width:${pct}%;background:${color}"></div></div></div>`;
+    }
+
+    function renderDashboard() {
+      const m = state.metrics; const todayValue = getTodayListingValue(); const pct = Math.max(0, Math.min(100, (todayValue / state.dayGoal) * 100));
+      $('todayProgressText').textContent = `${pct.toFixed(0)}%`; $('todaySub').textContent = `${euro(todayValue)} / ${euro(state.dayGoal)}`; $('todayProgressBar').style.width = `${pct}%`;
+      $('kpis').innerHTML = [ ['Monatsgewinn', euro(m.monthProfit)], ['Netto nach Fixkosten', euro(m.netMonthProfit || 0)], ['Fixkosten', euro(m.monthlyFixedCosts || 0)], ['Sales', m.salesCount] ].map(([k,v])=>`<div class="glass card"><div class="kpiLabel">${k}</div><div class="kpiVal">${v}</div></div>`).join('');
+      renderChart(state.range);
+      $('goalsSummary').innerHTML = [
+        goalTemplate('Jahresziel', m.roadTo15kProgress || 0, state.yearGoal, 'linear-gradient(90deg,#60a5fa,#2563eb)'),
+        goalTemplate('Tagesziel', todayValue, state.dayGoal, 'linear-gradient(90deg,#22c55e,#16a34a)'),
+        goalTemplate('Profit Goal', m.roadTo15kProgress || 0, m.roadTo15kGoal || 0, 'linear-gradient(90deg,#f59e0b,#d97706)')
+      ].join('');
     }
 
     function renderSales() {
       const rows = state.sales || [];
-      $('salesList').innerHTML = rows.length ? rows.map(r => `
-        <div class="glass sale">
-          <div class="saleTop">
-            <div>
-              <div class="saleTitle">${r.title || '-'}</div>
-              <div class="saleRevenue">${euro(r.vk)}</div>
-              <div class="saleProfit ${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">Gewinn: ${euro(r.profit)}</div>
-            </div>
-            <div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}</div>
-          </div>
-          <div class="costRow"><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)}</span></div>
-        </div>`).join('') : `<div class="glass sale">Keine gültigen Sales.</div>`;
+      $('salesList').innerHTML = rows.length ? rows.map(r => `<div class="glass sale"><div class="saleTop"><div><div class="saleTitle">${r.title || '-'}</div><div class="saleRevenue">${euro(r.vk)}</div><div class="saleProfit ${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">Gewinn: ${euro(r.profit)}</div></div><div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}</div></div><div class="costRow"><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)}</span></div></div>`).join('') : `<div class="glass sale">Keine gültigen Sales.</div>`;
     }
 
     async function loadSales() { const raw = await api('/sales'); state.sales = raw.rows || []; }
-    async function loadInventory() {
-      const raw = await api('/inventory');
-      const idx = Object.fromEntries((raw.header || []).map((h, i) => [String(h).trim(), i]));
-      const rows = raw.rows || [];
-      const dateIdx = idx['Datum'] ?? idx['Date'] ?? 5;
-      const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6;
-      state.inventory = rows.map(r => ({ date:r[dateIdx], listPrice:Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0 }));
-    }
+    async function loadInventory() { const raw = await api('/inventory'); const idx = Object.fromEntries((raw.header || []).map((h, i) => [String(h).trim(), i])); const rows = raw.rows || []; const dateIdx = idx['Datum'] ?? idx['Date'] ?? 5; const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6; state.inventory = rows.map(r => ({ date:r[dateIdx], listPrice:Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0 })); }
     async function loadSettings() { const raw = await api('/settings'); state.settings = raw.settings || {}; $('gkvLimit').value = state.settings.gkvLimit ?? 578; $('profitGoal').value = state.settings.profitGoal ?? 15000; $('defaultFeePct').value = state.settings.defaultFeePct ?? 12; $('defaultFeeFix').value = state.settings.defaultFeeFix ?? 0.35; }
     async function loadMetrics() { state.metrics = await api('/metrics'); }
 
@@ -229,27 +123,15 @@
     }
 
     function calc() {
-      const vk = Number($('calcVk').value || 0); const ek = Number($('calcEk').value || 0); const shipping = Number($('calcShipping').value || 0); const other = Number($('calcOther').value || 0);
-      const fees = vk * 0.12 + 0.35;
-      const profit = vk - ek - fees - shipping - other;
-      const go = profit > 0 ? 'GO' : 'NO-GO';
-      $('calcBtn').className = profit > 0 ? 'btnGreen' : 'btnRed';
-      $('calcResult').innerHTML = `<div class="${profit > 0 ? 'profitPos' : 'profitNeg'}" style="font-size:20px;font-weight:800">${go}</div><div>Profit: ${euro(profit)}</div><div>Fees: ${euro(fees)}</div><div>Versand: ${euro(shipping)}</div><div>Sonstige: ${euro(other)}</div>`;
+      const vk = Number($('calcVk').value || 0), ek = Number($('calcEk').value || 0), shipping = Number($('calcShipping').value || 0), other = Number($('calcOther').value || 0); const fees = vk * 0.12 + 0.35; const fixedShare = Number(state.metrics?.monthlyFixedCosts || 0) / 30; const profit = vk - ek - fees - shipping - other - fixedShare; const go = profit > 0 ? 'GO' : 'NO-GO';
+      $('calcBtn').className = profit > 0 ? 'btnGreen' : 'btnRed'; $('calcResult').innerHTML = `<div class="${profit > 0 ? 'profitPos' : 'profitNeg'}" style="font-size:20px;font-weight:800">${go}</div><div>Profit: ${euro(profit)}</div><div>Fees: ${euro(fees)}</div><div>Versand: ${euro(shipping)}</div><div>Sonstige: ${euro(other)}</div><div>Fixkosten-Anteil: ${euro(fixedShare)}</div>`;
     }
 
     function toggleSidebar(show) { $('sidebar').classList.toggle('open', show); $('backdrop').classList.toggle('show', show); }
-
-    async function boot() {
-      setLoading();
-      try {
-        await Promise.all([loadMetrics(), loadSettings(), loadSales(), loadInventory()]);
-        renderDashboard(); renderSales(); $('syncState').textContent = 'live sync';
-      } catch (e) { $('syncState').textContent = 'sync error'; console.error(e); }
-    }
-
+    async function boot() { setLoading(); try { await Promise.all([loadMetrics(), loadSettings(), loadSales(), loadInventory()]); renderDashboard(); renderSales(); $('syncState').textContent = 'live sync'; } catch (e) { $('syncState').textContent = 'sync error'; console.error(e); } }
     [...document.querySelectorAll('.tabBtn')].forEach(btn => btn.onclick = () => { document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.section').forEach(s => s.classList.remove('active')); btn.classList.add('active'); $(btn.dataset.tab).classList.add('active'); });
-    $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc;
-    boot();
+    [...document.querySelectorAll('.chip')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
+    $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc; boot();
   </script>
 </body>
 </html>

@@ -177,6 +177,7 @@ app.get("/sales", async (req, res) => {
     const data = await callSheets({ action: "getSales" });
     if (!data.ok) return res.status(500).json(data);
     const idx = Object.fromEntries((data.header || []).map((h, i) => [String(h).trim(), i]));
+    const iDate = idx["Datum"] ?? 0, iTitle = idx["Titel"] ?? idx["Title"] ?? 1, iProfit = idx["Gewinn"] ?? 8, iVk = idx["VK"] ?? 7, iOrder = idx["Order-ID"] ?? idx["OrderID"] ?? idx["ID"] ?? 9, iShipping = idx["Versand"] ?? 5, iFees = idx["Gebühr"] ?? 6;
     const iSku = idx["SKU"] ?? idx["Sku"] ?? idx["Artikelnummer"] ?? idx["Artikel-Nr"] ?? 2;
     const rows = (data.rows || []).filter((r) => String(r[iOrder] ?? "").trim() !== "").map((r) => ({ date: r[iDate], title: r[iTitle], profit: Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0, vk: Number(String(r[iVk] ?? "0").replace(",", ".")) || 0, shippingCost: Number(String(r[iShipping] ?? "0").replace(",", ".")) || 0, fees: Number(String(r[iFees] ?? "0").replace(",", ".")) || 0, orderId: String(r[iOrder] ?? "").trim(), sku: String(r[iSku] ?? "").trim() })).sort((a, b) => normalizeDateString(b.date).localeCompare(normalizeDateString(a.date)));
     res.json({ ok: true, rows });
@@ -290,7 +291,12 @@ app.post("/audit/insight", async (req, res) => {
     });
     const body = schema.parse(req.body || {});
     const keywords = (body.sku && body.sku.slice(0, 80)) || body.title || "";
-    const completed = await findCompletedItems({ keywords, limit: 15 });
+    let completed = [];
+    try {
+      completed = await findCompletedItems({ keywords, limit: 15 });
+    } catch (err) {
+      console.warn("findCompletedItems failed", err.message || err);
+    }
     const competitorCount = completed.length;
     const avgPrice = competitorCount ? completed.reduce((sum, item) => sum + item.price, 0) / competitorCount : null;
     const demandHigh = Boolean(body.historyPrice) || competitorCount >= 5;

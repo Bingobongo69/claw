@@ -137,6 +137,11 @@ function doPost(e) {
       return _json({ ok: true });
     }
 
+    if (action === "writeAuditRows") {
+      writeAuditRows_(body.rows || []);
+      return _json({ ok: true, count: (body.rows || []).length });
+    }
+
     return _json({ ok: false, error: "unknown_action", action: action });
   } catch (err) {
     return _json({ ok: false, error: String(err && err.message ? err.message : err) });
@@ -196,6 +201,24 @@ function readSettingsMap_() {
     };
   }
   return out;
+}
+
+function ensureAuditSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Audit");
+  if (!sheet) {
+    sheet = ss.insertSheet("Audit");
+  }
+  return sheet;
+}
+
+function writeAuditRows_(rows) {
+  var headers = ["ListingID","SKU","Title","Price","Currency","Quantity","Available","Score","Priority","IssueCodes","IssueDetails","URL","Image","LastAudit"];
+  var sheet = ensureAuditSheet_();
+  sheet.clearContents();
+  sheet.getRange(1,1,1,headers.length).setValues([headers]);
+  if (!rows || !rows.length) return;
+  sheet.getRange(2,1,rows.length,headers.length).setValues(rows);
 }
 
 function upsertSetting_(key, value, type, note) {

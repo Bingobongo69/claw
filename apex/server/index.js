@@ -219,6 +219,33 @@ app.get("/audit/listings", async (req, res) => {
   }
 });
 
+app.post("/audit/sync", async (req, res) => {
+  try {
+    const limit = Number(req.body?.limit) || 200;
+    const listings = await buildListingAudit({ limit: Math.min(Math.max(limit, 1), 500) });
+    const rows = listings.map((item) => [
+      item.listingId,
+      item.sku || "",
+      item.title,
+      item.price?.value || 0,
+      item.price?.currency || "EUR",
+      item.quantity ?? 0,
+      item.availableQuantity ?? 0,
+      item.score ?? 0,
+      item.priority || "low",
+      item.issues.map((issue) => issue.code).join(", "),
+      JSON.stringify(item.issues),
+      item.url || "",
+      item.image || "",
+      new Date().toISOString()
+    ]);
+    await callSheets({ action: "writeAuditRows", rows });
+    res.json({ ok: true, count: rows.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
 app.use((req, res, next) => {
   if (["/health", "/sheets/", "/metrics", "/sales", "/inventory", "/sourcing/", "/settings", "/todos", "/fees", "/bootstrap", "/command"].some((p) => req.path.startsWith(p))) return next();
   if (req.method !== "GET") return next();

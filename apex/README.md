@@ -48,6 +48,8 @@ Endpoints:
 - `GET /audit/listings?limit=50`
   - pulls aktive eBay-Angebote, bewertet Titel/Beschreibung/Preis/Bilder/SEO und gibt Score + Vorschläge zurück
   - benötigt `EBAY_CLIENT_ID`, `EBAY_CERT_ID`, `EBAY_REFRESH_TOKEN` in der Umgebung
+- `POST /audit/sync` (body optional `{ "limit": number }`)
+  - generiert Audit-Daten und schreibt sie als Tabelle in die Google-Sheet `Audit` (Apps-Script-Action `writeAuditRows`)
 
 ## Glide setup
 

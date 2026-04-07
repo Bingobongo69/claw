@@ -31,11 +31,17 @@ function evaluateListing(listing) {
   const title = listing.title?.trim() || "";
   const description = listing.shortDescription?.trim() || "";
   const priceValue = Number(listing?.price?.value);
-  const imageCount = Array.isArray(listing?.image?.imageUrls)
-    ? listing.image.imageUrls.length
-    : listing?.image?.imageUrl
-      ? 1
-      : 0;
+  const pictureCandidates = [];
+  const pushPicture = (val) => {
+    if (!val) return;
+    if (Array.isArray(val)) pictureCandidates.push(...val);
+    else pictureCandidates.push(val);
+  };
+  pushPicture(listing?.image);
+  pushPicture(listing?.raw?.image);
+  pushPicture(listing?.raw?.raw?.PictureDetails?.PictureURL);
+  pushPicture(listing?.raw?.raw?.PictureDetails?.GalleryURL);
+  const imageCount = [...new Set(pictureCandidates.filter(Boolean))].length;
 
   if (!title) {
     score -= addIssue(issues, {

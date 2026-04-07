@@ -11,10 +11,13 @@
     .iconBtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(18px);color:var(--text)} .glass{background:var(--card);border:1px solid var(--border);backdrop-filter:blur(18px);box-shadow:var(--shadow);border-radius:var(--radius)}
     .card{padding:16px}.section{display:none}.section.active{display:block}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stack{display:grid;gap:12px}.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.kpiVal{font-size:24px;font-weight:800;margin-top:8px}.kpiLabel{font-size:12px;color:var(--muted)}
     .progressSlim{height:10px;background:rgba(255,255,255,0.07);border-radius:999px;overflow:hidden;margin-top:10px}.progressSlim>div{height:100%;background:linear-gradient(90deg,#60a5fa,#22c55e);border-radius:999px}
+    .progressGoal{height:6px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin-top:8px}.progressGoal>div{height:100%;background:linear-gradient(90deg,#34d399,#0ea5e9);border-radius:999px}
     .goalItem{padding:12px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)} .goalHead{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}
     .chartWrap{height:290px;margin-top:10px;display:grid;grid-template-columns:44px 1fr;gap:10px}.yAxis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-size:10px;color:var(--muted);padding:8px 0}.plot{position:relative;height:100%;border-left:1px solid rgba(255,255,255,0.12);border-bottom:1px solid rgba(255,255,255,0.12);padding:8px 0 24px}.gridLine{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,0.06)}
     .bars{position:absolute;left:0;right:0;bottom:24px;top:8px;display:flex;gap:8px;align-items:flex-end}.barGroup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.barStack{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}.bar{width:9px;border-radius:6px 6px 3px 3px;min-height:4px}.barRev{background:#60a5fa}.barProfit{background:#22c55e}.barCost{background:#ef4444}.xLabel{font-size:10px;color:var(--muted);margin-top:6px}
     .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}.chipRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);font-size:12px;color:var(--muted)}.chip.active{background:rgba(96,165,250,0.18);color:#dbeafe;border-color:rgba(96,165,250,0.4)}
+    .seoBtn{margin-top:10px;width:100%;padding:10px;border:none;border-radius:14px;font-weight:700;color:white;background:linear-gradient(120deg,#2563eb,#7c3aed)}.seoBtn:disabled{opacity:0.7}
+    .seoSuggestion{margin-top:8px;border-radius:14px;border:1px solid var(--border);padding:10px;background:rgba(255,255,255,0.03);font-size:12px;color:var(--muted);white-space:pre-line}
     .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.saleTitle{font-size:13px;font-weight:600;color:var(--muted)} .saleRevenue{font-size:24px;font-weight:800;line-height:1}.saleProfit{font-size:13px;margin-top:6px}.saleMeta,.taskMeta,.costRow{font-size:12px;color:var(--muted)} .costRow{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}.profitPos{color:var(--green);font-weight:700}.profitNeg{color:var(--red);font-weight:700}
     label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input{width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)} button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155}.btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)} .calcResult{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
     .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(520px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
@@ -23,25 +26,25 @@
   </style>
 </head>
 <body>
-  <div class="sidebar" id="sidebar"><div class="top" style="margin-bottom:20px"><div><div class="title">Menü</div><div class="subtitle">Settings & Ziele</div></div><button class="iconBtn" id="closeSidebar">✕</button></div><div class="glass card stack"><div><div class="subtitle">Ziel-Konfiguration</div><label>Jahresziel</label><input id="yearGoal" value="25000" /><label>Tagesziel</label><input id="dayGoal" value="2000" /></div><div><div class="subtitle">Settings</div><label>GKV Limit</label><input id="gkvLimit" value="578" /><label>Profit Goal</label><input id="profitGoal" value="15000" /><label>Default Fee %</label><input id="defaultFeePct" value="12" /><label>Default Fee Fix</label><input id="defaultFeeFix" value="0.35" /></div><button id="saveAll">Speichern</button></div></div>
+  <div class="sidebar" id="sidebar"><div class="top" style="margin-bottom:20px"><div><div class="title">Menü</div><div class="subtitle">Einstellungen & Ziele</div></div><button class="iconBtn" id="closeSidebar">✕</button></div><div class="glass card stack"><div><div class="subtitle">Ziel-Konfiguration</div><label>Jahresziel</label><input id="yearGoal" value="25000" /><label>Tagesziel</label><input id="dayGoal" value="2000" /></div><div><div class="subtitle">Einstellungen</div><label>GKV Limit</label><input id="gkvLimit" value="578" /><label>Gewinnziel</label><input id="profitGoal" value="15000" /><label>Standard-Gebühr %</label><input id="defaultFeePct" value="12" /><label>Standard-Gebühr Fix</label><input id="defaultFeeFix" value="0.35" /></div><button id="saveAll">Speichern</button></div></div>
   <div class="backdrop" id="backdrop"></div>
 
   <div class="app">
-    <div class="top"><button class="iconBtn" id="openSidebar">☰</button><div style="text-align:right"><div class="title">Apex</div><div class="subtitle" id="syncState">syncing…</div></div></div>
+    <div class="top"><button class="iconBtn" id="openSidebar">☰</button><div style="text-align:right"><div class="title">Apex</div><div class="subtitle" id="syncState">lädt…</div></div></div>
 
     <section class="section active" id="dashboardSection">
-      <div class="glass card"><div class="title" style="font-size:16px">Performance Chart</div><div class="chipRow"><button class="chip active" data-range="7">7T</button><button class="chip" data-range="30">1M</button><button class="chip" data-range="90">Quartal</button><button class="chip" data-range="365">Jahr</button></div><div class="chartWrap" id="chartWrap"></div><div class="legend"><span><span class="dot" style="background:#60a5fa"></span>Umsatz</span><span><span class="dot" style="background:#22c55e"></span>Gewinn</span><span><span class="dot" style="background:#ef4444"></span>Kosten</span></div></div>
+      <div class="glass card"><div class="title" style="font-size:16px">Verkaufsverlauf</div><div class="chipRow"><button class="chip active" data-range="7">7T</button><button class="chip" data-range="30">1M</button><button class="chip" data-range="90">Quartal</button><button class="chip" data-range="365">Jahr</button></div><div class="chartWrap" id="chartWrap"></div><div class="legend"><span><span class="dot" style="background:#60a5fa"></span>Umsatz</span><span><span class="dot" style="background:#22c55e"></span>Gewinn</span><span><span class="dot" style="background:#ef4444"></span>Kosten</span></div></div>
       <div class="glass card" style="margin-top:12px"><div class="subtitle">Tages-Einstellziel</div><div style="display:flex;justify-content:space-between;margin-top:6px"><strong id="todayProgressText">0%</strong><span class="subtitle" id="todaySub">0€ / 2.000€</span></div><div class="progressSlim"><div id="todayProgressBar" style="width:0%"></div></div></div>
       <div class="kpis" id="kpis"></div>
     </section>
 
-    <section class="section" id="salesSection"><div class="glass card" style="margin-bottom:12px"><div class="title" style="font-size:16px">Sales</div><div class="subtitle">Nur valide Order-IDs</div></div><div class="list" id="salesList"></div></section>
-    <section class="section" id="calcSection"><div class="glass card stack"><div class="title" style="font-size:16px">Smart Calc</div><div class="row"><div><label>VK</label><input id="calcVk" type="number" value="25" /></div><div><label>EK</label><input id="calcEk" type="number" value="8" /></div></div><div class="row"><div><label>Versand</label><input id="calcShipping" type="number" value="0" /></div><div><label>Sonstige Kosten</label><input id="calcOther" type="number" value="0" /></div></div><button id="calcBtn">Berechnen</button><div class="calcResult" id="calcResult">Noch keine Berechnung.</div></div></section>
-    <section class="section" id="goalsSection"><div class="glass card stack"><div class="title" style="font-size:16px">Goals</div><div class="subtitle">Fortschritt je Ziel</div><div id="goalsSummary" class="stack"></div></div></section>
-    <section class="section" id="auditSection"><div class="glass card stack"><div class="title" style="font-size:16px">Listings Audit</div><div class="subtitle" id="auditSyncState">Sync bereit</div><button class="btnGreen" id="syncAuditBtn">Audit Sync</button></div><div class="list" id="auditList"></div></section>
+    <section class="section" id="salesSection"><div class="glass card" style="margin-bottom:12px"><div class="title" style="font-size:16px">Verkäufe</div><div class="subtitle">Nur valide Order-IDs</div></div><div class="list" id="salesList"></div></section>
+    <section class="section" id="calcSection"><div class="glass card stack"><div class="title" style="font-size:16px">Smart Kalkulation</div><div class="row"><div><label>VK</label><input id="calcVk" type="number" value="25" /></div><div><label>EK</label><input id="calcEk" type="number" value="8" /></div></div><div class="row"><div><label>Versand</label><input id="calcShipping" type="number" value="0" /></div><div><label>Sonstige Kosten</label><input id="calcOther" type="number" value="0" /></div></div><button id="calcBtn">Berechnen</button><div class="calcResult" id="calcResult">Noch keine Berechnung.</div></div></section>
+    <section class="section" id="goalsSection"><div class="glass card stack"><div class="title" style="font-size:16px">Ziele</div><div class="subtitle">Fortschritt je Ziel</div><div id="goalsSummary" class="stack"></div></div></section>
+    <section class="section" id="auditSection"><div class="glass card stack"><div class="title" style="font-size:16px">Listings-Audit</div><div class="subtitle" id="auditSyncState">Bereit</div><button class="btnGreen" id="syncAuditBtn">Audit synchronisieren</button></div><div class="list" id="auditList"></div></section>
   </div>
 
-  <nav class="bottomTabs"><button class="tabBtn active" data-tab="dashboardSection">Dashboard</button><button class="tabBtn" data-tab="salesSection">Sales</button><button class="tabBtn" data-tab="calcSection">Calc</button><button class="tabBtn" data-tab="goalsSection">Goals</button><button class="tabBtn" data-tab="auditSection">Audit</button></nav>
+  <nav class="bottomTabs"><button class="tabBtn active" data-tab="dashboardSection">Übersicht</button><button class="tabBtn" data-tab="salesSection">Verkäufe</button><button class="tabBtn" data-tab="calcSection">Kalkulator</button><button class="tabBtn" data-tab="goalsSection">Ziele</button><button class="tabBtn" data-tab="auditSection">Audit</button></nav>
 
   <script>
     const $ = (id) => document.getElementById(id);
@@ -89,9 +92,9 @@
         </div>`;
     }
 
-    function goalTemplate(label, current, target, color) {
+    function goalTemplate(label, current, target, gradient) {
       const pct = target > 0 ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
-      return `<div class="goalItem"><div class="goalHead"><span>${label}</span><strong>${pct.toFixed(1)}%</strong></div><div class="subtitle">${euro(current)} / ${euro(target)}</div><div class="progressSlim"><div style="width:${pct}%;background:${color}"></div></div></div>`;
+      return `<div class="goalItem"><div class="goalHead"><span>${label}</span><strong>${pct.toFixed(1)}%</strong></div><div class="subtitle">${euro(current)} von ${euro(target)}</div><div class="progressGoal"><div style="width:${pct}%;background:${gradient}"></div></div></div>`;
     }
 
     function renderDashboard() {
@@ -99,28 +102,31 @@
       $('todayProgressText').textContent = `${pct.toFixed(0)}%`; $('todaySub').textContent = `${euro(todayValue)} / ${euro(state.dayGoal)}`; $('todayProgressBar').style.width = `${pct}%`;
       $('kpis').innerHTML = [ ['Monatsgewinn', euro(m.monthProfit)], ['Netto nach Fixkosten', euro(m.netMonthProfit || 0)], ['Fixkosten', euro(m.monthlyFixedCosts || 0)], ['Sales', m.salesCount] ].map(([k,v])=>`<div class="glass card"><div class="kpiLabel">${k}</div><div class="kpiVal">${v}</div></div>`).join('');
       renderChart(state.range);
+      const revenueTarget = state.yearGoal || m.revenueGoal || m.roadTo15kGoal || 0;
+      const profitTarget = state.settings?.profitGoal ?? m.profitGoal ?? 0;
+      const profitProgress = m.profitGoalProgress ?? m.totalProfit ?? 0;
       $('goalsSummary').innerHTML = [
-        goalTemplate('Jahresziel', m.roadTo15kProgress || 0, state.yearGoal, 'linear-gradient(90deg,#60a5fa,#2563eb)'),
-        goalTemplate('Tagesziel', todayValue, state.dayGoal, 'linear-gradient(90deg,#22c55e,#16a34a)'),
-        goalTemplate('Profit Goal', m.roadTo15kProgress || 0, m.roadTo15kGoal || 0, 'linear-gradient(90deg,#f59e0b,#d97706)')
+        goalTemplate('Jahresziel Umsatz', m.roadTo15kProgress || 0, revenueTarget, 'linear-gradient(90deg,#60a5fa,#2563eb)'),
+        goalTemplate('Tagesziel Einstellwert', todayValue, state.dayGoal, 'linear-gradient(90deg,#22c55e,#16a34a)'),
+        goalTemplate('Gewinnziel Jahr', profitProgress, profitTarget, 'linear-gradient(90deg,#f97316,#ea580c)')
       ].join('');
     }
 
     function renderSales() {
       const rows = state.sales || [];
-      $('salesList').innerHTML = rows.length ? rows.map(r => `<div class="glass sale"><div class="saleTop"><div><div class="saleTitle">${r.title || '-'}</div><div class="saleRevenue">${euro(r.vk)}</div><div class="saleProfit ${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">Gewinn: ${euro(r.profit)}</div></div><div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}</div></div><div class="costRow"><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)}</span></div></div>`).join('') : `<div class="glass sale">Keine gültigen Sales.</div>`;
+      $('salesList').innerHTML = rows.length ? rows.map(r => `<div class="glass sale"><div class="saleTop"><div><div class="saleTitle">${r.title || '-'}</div><div class="saleRevenue">${euro(r.vk)}</div><div class="saleProfit ${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">Gewinn: ${euro(r.profit)}</div></div><div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}</div></div><div class="costRow"><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)}</span></div></div>`).join('') : `<div class="glass sale">Keine gültigen Verkäufe.</div>`;
     }
 
     function priorityBadge(priority) {
-      if (priority === 'high') return '<span style="color:#ef4444;font-weight:700">HIGH</span>';
-      if (priority === 'medium') return '<span style="color:#f59e0b;font-weight:700">MEDIUM</span>';
-      return '<span style="color:#22c55e;font-weight:700">LOW</span>';
+      if (priority === 'high') return '<span style="color:#ef4444;font-weight:700">HOCH</span>';
+      if (priority === 'medium') return '<span style="color:#f59e0b;font-weight:700">MITTEL</span>';
+      return '<span style="color:#22c55e;font-weight:700">NIEDRIG</span>';
     }
 
     function renderAudit() {
       const rows = state.audit || [];
       if (!rows.length) {
-        $('auditList').innerHTML = `<div class="glass sale">Noch keine Audit-Daten. Bitte oben auf „Audit Sync" tippen.</div>`;
+        $('auditList').innerHTML = `<div class="glass sale">Noch keine Audit-Daten. Bitte oben auf „Audit synchronisieren“ tippen.</div>`;
         return;
       }
       $('auditList').innerHTML = rows.map(item => {
@@ -134,25 +140,63 @@
             </div>
             <div class="saleMeta" style="text-align:right">
               ${item.price ? euro(item.price.value) : ''}<br/>
-              ${item.url ? `<a href="${item.url}" target="_blank" style="color:#60a5fa">Link</a>` : ''}
+              ${item.url ? `<a href="${item.url}" target="_blank" style="color:#60a5fa">Listing</a>` : ''}
             </div>
           </div>
           <div class="taskMeta" style="margin-top:6px">${item.title}</div>
           <div class="chipRow" style="margin-top:8px">${issues || '<span class="subtitle">Keine Issues erkannt</span>'}</div>
+          <button class="seoBtn" data-listing="${item.listingId}">Optimieren</button>
+          <div class="seoSuggestion" data-seo="${item.listingId}" style="display:none"></div>
         </div>`;
       }).join('');
+      attachSeoHandlers();
+    }
+
+    function generateSeoSuggestion(item) {
+      const baseTitle = (item.title || '').trim();
+      const cleanTitle = baseTitle || 'Top-Angebot';
+      const priceSuggestion = item.price?.value ? Math.max(1, (item.price.value * 0.98)).toFixed(2) : '';
+      const currency = item.price?.currency || 'EUR';
+      const bulletPoints = [
+        '✅ Sichtbar im relevanten Keyword-Cluster',
+        '🚚 Schneller Versand & geprüfte Qualität',
+        '💬 Nutzen & Zustand klar herausstellen'
+      ];
+      return `Titel: ${cleanTitle} | Jetzt sichern!
+Preisempfehlung: ${priceSuggestion} ${currency}
+Beschreibung:
+${cleanTitle} jetzt verfügbar – Zustand prüfen, USP nennen und in 2-3 Sätze Benefits hervorheben.
+Keywords: ${cleanTitle.split(' ').slice(0,6).join(', ')}
+Tipps:
+- ${bulletPoints.join('\n- ')}`;
+    }
+
+    function attachSeoHandlers() {
+      document.querySelectorAll('.seoBtn').forEach((btn) => {
+        btn.onclick = () => {
+          const id = btn.dataset.listing;
+          const listing = (state.audit || []).find((entry) => String(entry.listingId) === String(id));
+          if (!listing) return;
+          const suggestion = generateSeoSuggestion(listing);
+          const container = document.querySelector(`[data-seo="${id}"]`);
+          if (container) {
+            container.textContent = suggestion;
+            container.style.display = 'block';
+          }
+        };
+      });
     }
 
     async function syncAudit() {
       try {
-        $('auditSyncState').textContent = 'Sync läuft…';
+        $('auditSyncState').textContent = 'Abgleich läuft…';
         $('syncAuditBtn').disabled = true;
         await api('/audit/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ limit: 200 }) });
         await loadAudit();
         renderAudit();
         $('auditSyncState').textContent = `Stand ${new Date().toLocaleTimeString('de-DE')}`;
       } catch (e) {
-        $('auditSyncState').textContent = 'Sync Fehler';
+        $('auditSyncState').textContent = 'Abgleich fehlgeschlagen';
         console.error(e);
       } finally {
         $('syncAuditBtn').disabled = false;
@@ -161,24 +205,54 @@
 
     async function loadSales() { const raw = await api('/sales'); state.sales = raw.rows || []; }
     async function loadInventory() { const raw = await api('/inventory'); const idx = Object.fromEntries((raw.header || []).map((h, i) => [String(h).trim(), i])); const rows = raw.rows || []; const dateIdx = idx['Datum'] ?? idx['Date'] ?? 5; const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6; state.inventory = rows.map(r => ({ date:r[dateIdx], listPrice:Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0 })); }
-    async function loadSettings() { const raw = await api('/settings'); state.settings = raw.settings || {}; $('gkvLimit').value = state.settings.gkvLimit ?? 578; $('profitGoal').value = state.settings.profitGoal ?? 15000; $('defaultFeePct').value = state.settings.defaultFeePct ?? 12; $('defaultFeeFix').value = state.settings.defaultFeeFix ?? 0.35; }
+    async function loadSettings() {
+      const raw = await api('/settings');
+      state.settings = raw.settings || {};
+      $('gkvLimit').value = state.settings.gkvLimit ?? 578;
+      $('profitGoal').value = state.settings.profitGoal ?? 15000;
+      $('defaultFeePct').value = state.settings.defaultFeePct ?? 12;
+      $('defaultFeeFix').value = state.settings.defaultFeeFix ?? 0.35;
+      if (state.settings.revenueGoal !== undefined) {
+        state.yearGoal = Number(state.settings.revenueGoal) || state.yearGoal;
+      }
+      if (state.settings.dayListingGoal !== undefined) {
+        state.dayGoal = Number(state.settings.dayListingGoal) || state.dayGoal;
+      }
+      $('yearGoal').value = state.yearGoal;
+      $('dayGoal').value = state.dayGoal;
+    }
     async function loadMetrics() { state.metrics = await api('/metrics'); }
-    async function loadAudit() { const raw = await api('/audit/listings?limit=100'); state.audit = raw.listings || []; $('auditSyncState').textContent = `Stand ${new Date().toLocaleTimeString('de-DE')}`; }
+    async function loadAudit() {
+      const raw = await api('/audit/listings?limit=100');
+      const list = raw.listings || [];
+      state.audit = list.sort((a, b) => (b.score || 0) - (a.score || 0));
+      $('auditSyncState').textContent = `Stand ${new Date().toLocaleTimeString('de-DE')}`;
+    }
 
     async function saveAll() {
-      state.yearGoal = Number($('yearGoal').value || 25000); state.dayGoal = Number($('dayGoal').value || 2000);
-      const items = [['gkvLimit', Number($('gkvLimit').value)], ['profitGoal', Number($('profitGoal').value)], ['defaultFeePct', Number($('defaultFeePct').value)], ['defaultFeeFix', Number($('defaultFeeFix').value)]];
-      for (const [key, value] of items) await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, value, type:'number', note:'Updated from Apex UI' }) });
-      await Promise.all([loadMetrics(), loadSettings(), loadInventory()]); renderDashboard(); toggleSidebar(false);
+      state.yearGoal = Number($('yearGoal').value || 25000);
+      state.dayGoal = Number($('dayGoal').value || 2000);
+      const items = [
+        ['gkvLimit', Number($('gkvLimit').value)],
+        ['profitGoal', Number($('profitGoal').value)],
+        ['defaultFeePct', Number($('defaultFeePct').value)],
+        ['defaultFeeFix', Number($('defaultFeeFix').value)],
+        ['revenueGoal', state.yearGoal],
+        ['dayListingGoal', state.dayGoal]
+      ];
+      for (const [key, value] of items) await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, value, type:'number', note:'Aktualisiert im Apex-UI' }) });
+      await Promise.all([loadMetrics(), loadSettings(), loadInventory()]);
+      renderDashboard();
+      toggleSidebar(false);
     }
 
     function calc() {
-      const vk = Number($('calcVk').value || 0), ek = Number($('calcEk').value || 0), shipping = Number($('calcShipping').value || 0), other = Number($('calcOther').value || 0); const fees = vk * 0.12 + 0.35; const fixedShare = Number(state.metrics?.monthlyFixedCosts || 0) / 30; const profit = vk - ek - fees - shipping - other - fixedShare; const go = profit > 0 ? 'GO' : 'NO-GO';
-      $('calcBtn').className = profit > 0 ? 'btnGreen' : 'btnRed'; $('calcResult').innerHTML = `<div class="${profit > 0 ? 'profitPos' : 'profitNeg'}" style="font-size:20px;font-weight:800">${go}</div><div>Profit: ${euro(profit)}</div><div>Fees: ${euro(fees)}</div><div>Versand: ${euro(shipping)}</div><div>Sonstige: ${euro(other)}</div><div>Fixkosten-Anteil: ${euro(fixedShare)}</div>`;
+      const vk = Number($('calcVk').value || 0), ek = Number($('calcEk').value || 0), shipping = Number($('calcShipping').value || 0), other = Number($('calcOther').value || 0); const fees = vk * 0.12 + 0.35; const fixedShare = Number(state.metrics?.monthlyFixedCosts || 0) / 30; const profit = vk - ek - fees - shipping - other - fixedShare; const verdict = profit > 0 ? 'FREIGABE' : 'STOP';
+      $('calcBtn').className = profit > 0 ? 'btnGreen' : 'btnRed'; $('calcResult').innerHTML = `<div class="${profit > 0 ? 'profitPos' : 'profitNeg'}" style="font-size:20px;font-weight:800">${verdict}</div><div>Gewinn: ${euro(profit)}</div><div>Gebühren: ${euro(fees)}</div><div>Versand: ${euro(shipping)}</div><div>Sonstige: ${euro(other)}</div><div>Fixkosten-Anteil: ${euro(fixedShare)}</div>`;
     }
 
     function toggleSidebar(show) { $('sidebar').classList.toggle('open', show); $('backdrop').classList.toggle('show', show); }
-    async function boot() { setLoading(); try { await Promise.all([loadMetrics(), loadSettings(), loadSales(), loadInventory(), loadAudit()]); renderDashboard(); renderSales(); renderAudit(); $('syncState').textContent = 'live sync'; } catch (e) { $('syncState').textContent = 'sync error'; console.error(e); } }
+    async function boot() { setLoading(); try { await Promise.all([loadMetrics(), loadSettings(), loadSales(), loadInventory(), loadAudit()]); renderDashboard(); renderSales(); renderAudit(); $('syncState').textContent = 'Live-Daten'; } catch (e) { $('syncState').textContent = 'Fehler beim Laden'; console.error(e); } }
     [...document.querySelectorAll('.tabBtn')].forEach(btn => btn.onclick = () => { document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.section').forEach(s => s.classList.remove('active')); btn.classList.add('active'); $(btn.dataset.tab).classList.add('active'); });
     [...document.querySelectorAll('.chip')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
     $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc; $('syncAuditBtn').onclick = syncAudit; boot();

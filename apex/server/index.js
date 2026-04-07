@@ -343,10 +343,11 @@ app.post("/command", async (req, res) => {
   }
 });
 
-app.get("*", (req, res, next) => {
+app.use((req, res, next) => {
   if (["/health", "/sheets/", "/metrics", "/sourcing/", "/settings", "/todos", "/fees", "/bootstrap", "/command"].some((p) => req.path.startsWith(p))) {
     return next();
   }
+  if (req.method !== "GET") return next();
   res.sendFile(new URL("../public/index.html", import.meta.url).pathname);
 });
 

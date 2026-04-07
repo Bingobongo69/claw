@@ -75,10 +75,10 @@ async function getMonthlyFixedCosts() {
   const col = idx["fixkosten"];
   if (col === undefined) return 0;
 
-  for (const row of rows) {
-    const raw = String(row[col] ?? "").replace(/€/g, "").replace(/\s/g, "").replace(",", ".");
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const raw = String(rows[i][col] ?? "").replace(/€/g, "").replace(/\s/g, "").replace(",", ".");
     const n = Number(raw);
-    if (Number.isFinite(n) && n > 0) return n;
+    if (Number.isFinite(n)) return Math.max(n, 0);
   }
   return 0;
 }
@@ -115,20 +115,26 @@ app.get("/metrics", async (req, res) => {
     const iDate = idx["Datum"] ?? 0;
     const iProfit = idx["Gewinn"] ?? 8;
     const iOrder = idx["Order-ID"] ?? idx["OrderID"] ?? idx["ID"] ?? 9;
+    const iVk = idx["VK"] ?? idx["Umsatz"] ?? idx["Verkaufspreis"] ?? 7;
     const validRows = rows.filter((r) => String(r[iOrder] ?? "").trim() !== "");
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    let monthProfit = 0, totalProfit = 0, count = 0;
+    let monthProfit = 0, totalProfit = 0, totalRevenue = 0, monthRevenue = 0, count = 0;
     for (const r of validRows) {
       count++;
       const profit = Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0;
+      const revenue = Number(String(r[iVk] ?? "0").replace(",", ".")) || 0;
       totalProfit += profit;
+      totalRevenue += revenue;
       const ds = normalizeDateString(r[iDate]);
-      if (ds.slice(0, 7) === ym) monthProfit += profit;
+      if (ds.slice(0, 7) === ym) {
+        monthProfit += profit;
+        monthRevenue += revenue;
+      }
     }
     const gkvLimit = Number.isFinite(settings.gkvLimit) ? settings.gkvLimit : DEFAULT_GKV_LIMIT;
-    const profitGoal = Number.isFinite(settings.profitGoal) ? settings.profitGoal : DEFAULT_PROFIT_GOAL;
-    res.json({ ok: true, salesCount: count, totalProfit, monthProfit, netMonthProfit: monthProfit - monthlyFixedCosts, monthlyFixedCosts, gkvLimit, gkvRemaining: gkvLimit - monthProfit, roadTo15kGoal: profitGoal, roadTo15kProgress: totalProfit, settings });
+    const revenueGoal = Number.isFinite(settings.profitGoal) ? settings.profitGoal : DEFAULT_PROFIT_GOAL;
+    res.json({ ok: true, salesCount: count, totalProfit, totalRevenue, monthProfit, monthRevenue, netMonthProfit: monthProfit - monthlyFixedCosts, monthlyFixedCosts, gkvLimit, gkvRemaining: gkvLimit - monthProfit, roadTo15kGoal: revenueGoal, roadTo15kProgress: totalRevenue, settings });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); }
 });
 

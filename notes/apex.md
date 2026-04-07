@@ -23,10 +23,14 @@
 
 ## Verified on 2026-04-07
 - Google Apps Script Web App URL received and saved in `apex/.env`
-- `/health` OK
-- `/sheets/ping` OK
-- `/bootstrap` OK
-- `/settings` OK and returned default settings
+- Local `/health` OK
+- Local `/sheets/ping` OK
+- Local `/bootstrap` OK
+- Local `/settings` OK and returned default settings
+- Render service created successfully
+- Public backend URL live: `https://apex-app-610g.onrender.com`
+- Public `/health` OK
+- Public `/settings` OK
 
 ## Newly completed on 2026-04-07
 - Settings sheet bootstrap flow
@@ -36,6 +40,8 @@
 - `/bootstrap` endpoint
 - `/command` actions for settings/todo/bootstrap
 - README expanded with Glide setup guidance
+- `/metrics` now reports Umsatz (VK) progress vs Jahresgoal and exposes revenue totals
+- Monatsübersicht → Fixkosten column is read bottom-up so the newest monthly fixed-cost value drives sourcing + metrics
 
 ## Ops notes
 - OpenClaw memory should always be updated after Apex work

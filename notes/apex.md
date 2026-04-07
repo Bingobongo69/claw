@@ -46,6 +46,7 @@
 ## Ops notes
 - OpenClaw memory should always be updated after Apex work
 - Use this file as stable project state so prior work is not lost between sessions
+- eBay API credentials stored in `apex/.env` (`EBAY_CLIENT_ID`, `EBAY_RU_NAME`, `EBAY_CERT_ID`); add secret/cert once provided
 
 ## Upcoming roadmap (2026-04-07)
 1. **Listings Audit Tab** (Glide)

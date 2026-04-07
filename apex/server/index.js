@@ -33,6 +33,7 @@ const DEFAULT_FEE_PCT = 0.12;
 const DEFAULT_FEE_FIXED = 0.35;
 const DEFAULT_GKV_LIMIT = 578;
 const DEFAULT_PROFIT_GOAL = 15000;
+const DEFAULT_REVENUE_GOAL = 15000;
 
 function normalizeSettingValue(raw, type = "string") {
   if (type === "number") {
@@ -133,8 +134,27 @@ app.get("/metrics", async (req, res) => {
       }
     }
     const gkvLimit = Number.isFinite(settings.gkvLimit) ? settings.gkvLimit : DEFAULT_GKV_LIMIT;
-    const revenueGoal = Number.isFinite(settings.profitGoal) ? settings.profitGoal : DEFAULT_PROFIT_GOAL;
-    res.json({ ok: true, salesCount: count, totalProfit, totalRevenue, monthProfit, monthRevenue, netMonthProfit: monthProfit - monthlyFixedCosts, monthlyFixedCosts, gkvLimit, gkvRemaining: gkvLimit - monthProfit, roadTo15kGoal: revenueGoal, roadTo15kProgress: totalRevenue, settings });
+    const profitGoal = Number.isFinite(settings.profitGoal) ? settings.profitGoal : DEFAULT_PROFIT_GOAL;
+    const revenueGoal = Number.isFinite(settings.revenueGoal) ? settings.revenueGoal : DEFAULT_REVENUE_GOAL;
+    res.json({
+      ok: true,
+      salesCount: count,
+      totalProfit,
+      totalRevenue,
+      monthProfit,
+      monthRevenue,
+      netMonthProfit: monthProfit - monthlyFixedCosts,
+      monthlyFixedCosts,
+      gkvLimit,
+      gkvRemaining: gkvLimit - monthProfit,
+      profitGoal,
+      profitGoalProgress: totalProfit,
+      roadTo15kGoal: revenueGoal,
+      roadTo15kProgress: totalRevenue,
+      revenueGoal,
+      revenueGoalProgress: totalRevenue,
+      settings
+    });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); }
 });
 

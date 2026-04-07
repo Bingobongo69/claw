@@ -40,7 +40,7 @@
 - `/bootstrap` endpoint
 - `/command` actions for settings/todo/bootstrap
 - README expanded with Glide setup guidance
-- `/metrics` now reports Umsatz (VK) progress vs Jahresgoal and exposes revenue totals
+- `/metrics` now trennt Umsatz-Progress (roadTo15k) von Profit-Goal: liefert `totalRevenue`/`monthRevenue`, `revenueGoal*` und `profitGoal/profitGoalProgress`
 - Monatsübersicht → Fixkosten column is read bottom-up so the newest monthly fixed-cost value drives sourcing + metrics
 
 ## Ops notes

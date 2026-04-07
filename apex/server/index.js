@@ -70,24 +70,17 @@ async function getMonthlyFixedCosts() {
   const header = r.header || [];
   const rows = r.rows || [];
   if (!rows.length) return 0;
+
   const idx = Object.fromEntries(header.map((h, i) => [String(h).trim().toLowerCase(), i]));
-  const targetCols = ["fixkosten", "fixedcosts", "kosten fix", "monatliche fixkosten"];
-  let col = -1;
-  for (const key of targetCols) {
-    if (idx[key] !== undefined) { col = idx[key]; break; }
+  const col = idx["fixkosten"];
+  if (col === undefined) return 0;
+
+  for (const row of rows) {
+    const raw = String(row[col] ?? "").replace(/€/g, "").replace(/\s/g, "").replace(",", ".");
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return n;
   }
-  if (col === -1) {
-    let sum = 0;
-    for (const row of rows) {
-      for (const cell of row) {
-        const n = Number(String(cell ?? "").replace(",", "."));
-        if (Number.isFinite(n) && n > 0) sum = Math.max(sum, n);
-      }
-    }
-    return sum;
-  }
-  const last = rows[rows.length - 1];
-  return Number(String(last[col] ?? "0").replace(",", ".")) || 0;
+  return 0;
 }
 
 async function getFeeForCategory(category) {

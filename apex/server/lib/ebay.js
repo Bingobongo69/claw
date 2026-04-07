@@ -3,14 +3,7 @@ import fetch from "node-fetch";
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID;
 const EBAY_CERT_ID = process.env.EBAY_CERT_ID;
 const EBAY_REFRESH_TOKEN = process.env.EBAY_REFRESH_TOKEN;
-const EBAY_SCOPE = process.env.EBAY_SCOPE || [
-  "https://api.ebay.com/oauth/api_scope",
-  "https://api.ebay.com/oauth/api_scope/sell.account",
-  "https://api.ebay.com/oauth/api_scope/sell.account.readonly",
-  "https://api.ebay.com/oauth/api_scope/sell.inventory",
-  "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly",
-  "https://api.ebay.com/oauth/api_scope/sell.fulfillment"
-].join(" ");
+const EBAY_SCOPE = process.env.EBAY_SCOPE;
 
 let tokenCache = { accessToken: null, expiresAt: 0 };
 
@@ -30,9 +23,9 @@ export async function getEbayAccessToken(force = false) {
   const credentials = Buffer.from(`${EBAY_CLIENT_ID}:${EBAY_CERT_ID}`).toString("base64");
   const body = new URLSearchParams({
     grant_type: "refresh_token",
-    refresh_token: EBAY_REFRESH_TOKEN,
-    scope: EBAY_SCOPE
+    refresh_token: EBAY_REFRESH_TOKEN
   });
+  if (EBAY_SCOPE) body.set("scope", EBAY_SCOPE);
 
   const res = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
     method: "POST",

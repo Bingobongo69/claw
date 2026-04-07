@@ -1,10 +1,16 @@
 import fetch from "node-fetch";
+import { XMLParser } from "fast-xml-parser";
 
 const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID;
 const EBAY_CERT_ID = process.env.EBAY_CERT_ID;
 const EBAY_REFRESH_TOKEN = process.env.EBAY_REFRESH_TOKEN;
 const EBAY_SCOPE = process.env.EBAY_SCOPE;
 const EBAY_MARKETPLACE_ID = process.env.EBAY_MARKETPLACE_ID || "EBAY_DE";
+const EBAY_SITE_ID = process.env.EBAY_SITE_ID || "77";
+const EBAY_TRADING_LEVEL = process.env.EBAY_TRADING_LEVEL || "1231";
+const EBAY_TRADING_ENDPOINT = process.env.EBAY_TRADING_ENDPOINT || "https://api.ebay.com/ws/api.dll";
+
+const tradingParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", parseTagValue: true });
 
 let tokenCache = { accessToken: null, expiresAt: 0 };
 
@@ -85,4 +91,84 @@ export async function fetchActiveListings({ limit = 50, max = 200 } = {}) {
   }
 
   return listings.slice(0, normalizedMax);
+}
+
+async function callTradingApi(callName, xmlBody, { useTokenInBody = false } = {}) {
+  const token = await getEbayAccessToken();
+  const headers = {
+    "Content-Type": "text/xml",
+    "X-EBAY-API-CALL-NAME": callName,
+    "X-EBAY-API-COMPATIBILITY-LEVEL": EBAY_TRADING_LEVEL,
+    "X-EBAY-API-SITEID": EBAY_SITE_ID,
+    "X-EBAY-API-IAF-TOKEN": token
+  };
+  const finalXml = useTokenInBody
+    ? xmlBody.replace("{{TOKEN}}", token)
+    : xmlBody;
+  const res = await fetch(EBAY_TRADING_ENDPOINT, { method: "POST", headers, body: finalXml });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Trading API ${callName} failed (${res.status}): ${text.slice(0, 400)}`);
+  return tradingParser.parse(text);
+}
+
+function normalizeTradingItem(item) {
+  if (!item) return null;
+  const quantity = Number(item.Quantity ?? 0);
+  const quantitySold = Number(item.SellingStatus?.QuantitySold ?? 0);
+  const priceNode = item.StartPrice || item.BuyItNowPrice || item.SellingStatus?.CurrentPrice;
+  const price = typeof priceNode === "object" ? Number(priceNode?.["#text"] ?? priceNode) : Number(priceNode ?? 0);
+  const currency = typeof priceNode === "object" ? priceNode?.["@_currencyID"] : undefined;
+  const pictureSource = item.PictureDetails?.PictureURL || item.PictureDetails?.GalleryURL;
+  const pictureList = Array.isArray(pictureSource) ? pictureSource : pictureSource ? [pictureSource] : [];
+  const available = Number(item.QuantityAvailable ?? quantity - quantitySold);
+  return {
+    listingId: item.ItemID,
+    sku: item.SKU || null,
+    title: item.Title || "",
+    shortDescription: item.Description || "",
+    price: { value: price || 0, currency: currency || "EUR" },
+    quantity,
+    availableQuantity: Number.isFinite(available) ? Math.max(available, 0) : Math.max(quantity - quantitySold, 0),
+    marketplaceId: item.Site ?? EBAY_MARKETPLACE_ID,
+    image: pictureList[0] || null,
+    url: item.ListingDetails?.ViewItemURL || null,
+    listingStatus: item.SellingStatus?.ListingStatus,
+    category: item.PrimaryCategory?.CategoryName,
+    startTime: item.ListingDetails?.StartTime,
+    endTime: item.ListingDetails?.EndTime,
+    raw: item
+  };
+}
+
+export async function fetchSellerListings({ entriesPerPage = 100, maxPages = 10 } = {}) {
+  const items = [];
+  let page = 1;
+
+  while (page <= maxPages) {
+    const xml = `<?xml version="1.0" encoding="utf-8"?>
+      <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <ActiveList>
+          <Include>true</Include>
+          <Pagination>
+            <EntriesPerPage>${entriesPerPage}</EntriesPerPage>
+            <PageNumber>${page}</PageNumber>
+          </Pagination>
+        </ActiveList>
+        <GranularityLevel>Fine</GranularityLevel>
+      </GetMyeBaySellingRequest>`;
+    const data = await callTradingApi("GetMyeBaySelling", xml);
+    const response = data?.GetMyeBaySellingResponse;
+    if (!response) break;
+    const activeList = response.ActiveList;
+    const array = activeList?.ItemArray?.Item;
+    const list = Array.isArray(array) ? array : array ? [array] : [];
+    for (const item of list) {
+      const normalized = normalizeTradingItem(item);
+      if (normalized) items.push(normalized);
+    }
+    const totalPages = Number(activeList?.PaginationResult?.TotalNumberOfPages ?? page);
+    if (page >= totalPages) break;
+    page += 1;
+  }
+  return items;
 }

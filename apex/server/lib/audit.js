@@ -1,4 +1,4 @@
-import { fetchActiveListings } from "./ebay.js";
+import { fetchSellerListings } from "./ebay.js";
 
 const PRIORITY_ORDER = { high: 3, medium: 2, low: 1 };
 
@@ -169,6 +169,8 @@ function evaluateListing(listing) {
 }
 
 export async function buildListingAudit({ limit = 50 } = {}) {
-  const rawListings = await fetchActiveListings({ limit, max: limit });
-  return rawListings.map(evaluateListing);
+  const entries = Math.min(Math.max(limit, 1), 200);
+  const pages = Math.max(Math.ceil(limit / entries), 1);
+  const rawListings = await fetchSellerListings({ entriesPerPage: entries, maxPages: pages });
+  return rawListings.slice(0, limit).map(evaluateListing);
 }

@@ -49,6 +49,17 @@ function doPost(e) {
       return _json({ ok: true, header: stockHeader, rows: stockRows });
     }
 
+    if (action === "getMonthlyOverview") {
+      var monthSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Monatsübersicht");
+      if (!monthSheet) return _json({ ok: false, error: "sheet_not_found", sheet: "Monatsübersicht" });
+      var monthLastRow = monthSheet.getLastRow();
+      var monthLastCol = monthSheet.getLastColumn();
+      if (monthLastRow < 2) return _json({ ok: true, header: monthSheet.getRange(1,1,1,monthLastCol).getValues()[0], rows: [] });
+      var monthHeader = monthSheet.getRange(1,1,1,monthLastCol).getValues()[0];
+      var monthRows = monthSheet.getRange(2,1,monthLastRow-1,monthLastCol).getValues();
+      return _json({ ok: true, header: monthHeader, rows: monthRows });
+    }
+
     if (action === "ensureFeesSheet") {
       ensureFeesSheet_();
       return _json({ ok: true });

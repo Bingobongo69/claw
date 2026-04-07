@@ -45,6 +45,9 @@ Endpoints:
   - `{ command:"set_profit_goal", value:number }`
   - `{ command:"add_todo", title:string }`
   - `{ command:"bootstrap" }`
+- `GET /audit/listings?limit=50`
+  - pulls aktive eBay-Angebote, bewertet Titel/Beschreibung/Preis/Bilder/SEO und gibt Score + Vorschläge zurück
+  - benötigt `EBAY_CLIENT_ID`, `EBAY_CERT_ID`, `EBAY_REFRESH_TOKEN` in der Umgebung
 
 ## Glide setup
 

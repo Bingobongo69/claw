@@ -47,6 +47,7 @@
 - OpenClaw memory should always be updated after Apex work
 - Use this file as stable project state so prior work is not lost between sessions
 - eBay API credentials + refresh token stored in `apex/.env` (`EBAY_CLIENT_ID`, `EBAY_RU_NAME`, `EBAY_CERT_ID`, `EBAY_REFRESH_TOKEN`)
+- `/audit/listings` Endpoint gebaut (zieht aktive eBay-Listings, bewertet Titel/Beschreibung/Preis/Bilder); aktuell blockiert durch `invalid_grant` beim Refresh-Token → neues Token nötig
 
 ## Upcoming roadmap (2026-04-07)
 1. **Listings Audit Tab** (Glide)

@@ -1,6 +1,8 @@
+import "dotenv/config";
 import express from "express";
 import fetch from "node-fetch";
 import { z } from "zod";
+import { buildListingAudit } from "./lib/audit.js";
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -205,6 +207,16 @@ app.post("/command", async (req, res) => {
     if (body.command === "add_todo") { return res.json({ ok: true, command: body.command, result: await callSheets({ action: "addTodo", title: body.title || String(body.value || ""), note: body.note || "", status: "open", owner: "Raul" }) }); }
     res.status(400).json({ ok: false, error: "unsupported_command" });
   } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
+});
+
+app.get("/audit/listings", async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 50;
+    const listings = await buildListingAudit({ limit: Math.min(Math.max(limit, 1), 200) });
+    res.json({ ok: true, generatedAt: new Date().toISOString(), count: listings.length, listings });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
 });
 
 app.use((req, res, next) => {

@@ -47,7 +47,7 @@
 - OpenClaw memory should always be updated after Apex work
 - Use this file as stable project state so prior work is not lost between sessions
 - eBay API credentials + refresh token stored in `apex/.env` (`EBAY_CLIENT_ID`, `EBAY_RU_NAME`, `EBAY_CERT_ID`, `EBAY_REFRESH_TOKEN`)
-- `/audit/listings` Endpoint gebaut (zieht aktive eBay-Listings, bewertet Titel/Beschreibung/Preis/Bilder); aktuell blockiert durch `invalid_grant` beim Refresh-Token → gültigen OAuth-Code/Refresh-Token für App `RaulKlei-xx-PRD-…` + RuName `Raul_Kleinmann-RaulKlei-xx-PRD-vfdham` anfordern
+- `/audit/listings` Endpoint gebaut (zieht aktive eBay-Listings, bewertet Titel/Beschreibung/Preis/Bilder); OAuth-Code/Refresh-Token nun vorhanden, Zugriff funktioniert – Sell Listing API liefert jedoch 404 (Account offenbar nicht für `sell/listing`/`inventory` aktiviert). Alternative: Trading API (`GetSellerList`) oder Listing-Export via Feed aktivieren.
 
 ## Upcoming roadmap (2026-04-07)
 1. **Listings Audit Tab** (Glide)

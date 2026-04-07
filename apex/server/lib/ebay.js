@@ -4,6 +4,7 @@ const EBAY_CLIENT_ID = process.env.EBAY_CLIENT_ID;
 const EBAY_CERT_ID = process.env.EBAY_CERT_ID;
 const EBAY_REFRESH_TOKEN = process.env.EBAY_REFRESH_TOKEN;
 const EBAY_SCOPE = process.env.EBAY_SCOPE;
+const EBAY_MARKETPLACE_ID = process.env.EBAY_MARKETPLACE_ID || "EBAY_DE";
 
 let tokenCache = { accessToken: null, expiresAt: 0 };
 
@@ -64,7 +65,8 @@ export async function fetchActiveListings({ limit = 50, max = 200 } = {}) {
     const res = await fetch(next, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json"
+        Accept: "application/json",
+        "X-EBAY-C-MARKETPLACE-ID": EBAY_MARKETPLACE_ID
       }
     });
 

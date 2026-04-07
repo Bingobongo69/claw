@@ -11,7 +11,7 @@ _Learn about the person you're helping. Update this as you go._
 - **Name:** Raul
 - **What to call them:** Raul
 - **Timezone:** UTC
-- **Notes:** Wants extremely short, direct, token-efficient replies. Prefers high autonomy and proactive execution. Wants business/ops handled quietly with last-resort communication only. Wants the assistant to directly implement sensible suggestions by default without asking first.
+- **Notes:** Wants extremely short, direct, token-efficient replies. Prefers high autonomy and proactive execution. Wants business/ops handled quietly with last-resort communication only. Wants the assistant to directly implement sensible suggestions by default without asking first. For project work, wants regular progress updates without needing to ask. Wants blockers/dependencies surfaced immediately and expects very proactive, accommodating behavior.
 
 ## Context
 

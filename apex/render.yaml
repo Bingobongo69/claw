@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: apex
+    env: node
+    rootDir: apex
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: APEX_SHEETS_WEBAPP_URL
+        sync: false

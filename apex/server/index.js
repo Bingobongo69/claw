@@ -32,7 +32,7 @@ async function callSheets(body) {
 
 function parseSkuParts(sku = "") {
   // Raul example: 01_01_01_01_EK2_VK_5
-  // We'll accept variants like EK2.5, EK2,50, VK_5, VP3 etc.
+  // Convention here: EK = Einkauf, VK token inside SKU = Versandkosten.
   const norm = String(sku).trim();
   const tokens = norm.split("_").filter(Boolean);
 
@@ -94,9 +94,66 @@ function sourcingDecision({ expectedVk, ek, shippingCost, feePct, feeFixed }) {
   return { go: go ? "GO" : "NO-GO", profit, margin, fees };
 }
 
-// For now: default fee if category not known.
+// Fees: user enters percent values in the Fees sheet (e.g. 12 for 12%)
 const DEFAULT_FEE_PCT = 0.12;
 const DEFAULT_FEE_FIXED = 0.35;
+const DEFAULT_GKV_LIMIT = 578;
+const DEFAULT_PROFIT_GOAL = 15000;
+
+function normalizeSettingValue(raw, type = "string") {
+  if (type === "number") {
+    const n = Number(String(raw).replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+  }
+  if (type === "boolean") {
+    const s = String(raw).trim().toLowerCase();
+    return !(s === "false" || s === "0" || s === "no" || s === "off" || s === "");
+  }
+  return raw;
+}
+
+async function getSettingsMap() {
+  const r = await callSheets({ action: "getSettings" });
+  if (!r.ok) return {};
+  const out = {};
+  for (const [key, meta] of Object.entries(r.settings || {})) {
+    out[key] = normalizeSettingValue(meta?.value, meta?.type || "string");
+  }
+  return out;
+}
+
+async function getFeeForCategory(category) {
+  const settings = await getSettingsMap().catch(() => ({}));
+  const defaultFeePct = Number.isFinite(settings.defaultFeePct) ? settings.defaultFeePct / 100 : DEFAULT_FEE_PCT;
+  const defaultFeeFixed = Number.isFinite(settings.defaultFeeFix) ? settings.defaultFeeFix : DEFAULT_FEE_FIXED;
+
+  if (!category) return { feePct: defaultFeePct, feeFixed: defaultFeeFixed, source: "default" };
+
+  const r = await callSheets({ action: "getSheet", sheet: "Fees" });
+  if (!r.ok) return { feePct: defaultFeePct, feeFixed: defaultFeeFixed, source: "default_error" };
+
+  const idx = Object.fromEntries((r.header || []).map((h, i) => [String(h).trim(), i]));
+  const iCat = idx["Kategorie"] ?? 0;
+  const iPct = idx["FeePct"] ?? 1;
+  const iFix = idx["FeeFix"] ?? 2;
+  const iActive = idx["Active"] ?? 3;
+
+  const row = (r.rows || []).find((row) => {
+    const active = String(row[iActive] ?? "true").toLowerCase();
+    const ok = !(active === "false" || active === "0");
+    return ok && String(row[iCat] ?? "").trim().toLowerCase() === String(category).trim().toLowerCase();
+  });
+
+  if (!row) return { feePct: defaultFeePct, feeFixed: defaultFeeFixed, source: "default_missing" };
+
+  const pct = Number(String(row[iPct] ?? "").replace(",", "."));
+  const fix = Number(String(row[iFix] ?? "").replace(",", "."));
+
+  const feePct = isFinite(pct) ? pct / 100 : defaultFeePct;
+  const feeFixed = isFinite(fix) ? fix : defaultFeeFixed;
+
+  return { feePct, feeFixed, source: "fees_sheet" };
+}
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
@@ -113,13 +170,15 @@ app.get("/sheets/ping", async (req, res) => {
 
 app.get("/metrics", async (req, res) => {
   try {
-    const data = await callSheets({ action: "getSales" });
+    const [data, settings] = await Promise.all([
+      callSheets({ action: "getSales" }),
+      getSettingsMap().catch(() => ({})),
+    ]);
     if (!data.ok) return res.status(500).json(data);
 
     const header = data.header;
     const rows = data.rows;
 
-    // indices by header name (robust if columns moved)
     const idx = Object.fromEntries(header.map((h, i) => [String(h).trim(), i]));
     const iDate = idx["Datum"] ?? 0;
     const iProfit = idx["Gewinn"] ?? 8;
@@ -141,15 +200,19 @@ app.get("/metrics", async (req, res) => {
       if (ds === ym) monthProfit += profit;
     }
 
+    const gkvLimit = Number.isFinite(settings.gkvLimit) ? settings.gkvLimit : DEFAULT_GKV_LIMIT;
+    const profitGoal = Number.isFinite(settings.profitGoal) ? settings.profitGoal : DEFAULT_PROFIT_GOAL;
+
     res.json({
       ok: true,
       salesCount: count,
       totalProfit,
       monthProfit,
-      gkvLimit: 578,
-      gkvRemaining: 578 - monthProfit,
-      roadTo15kGoal: 15000,
+      gkvLimit,
+      gkvRemaining: gkvLimit - monthProfit,
+      roadTo15kGoal: profitGoal,
       roadTo15kProgress: totalProfit,
+      settings,
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
@@ -169,27 +232,117 @@ app.post("/sourcing/check", async (req, res) => {
     const { vp } = parseSkuParts(body.sku || "");
     const shippingCost = (vp ?? 0);
 
-    // TODO: category-based fee lookup (we will implement once we have mapping source)
-    const feePct = DEFAULT_FEE_PCT;
-    const feeFixed = DEFAULT_FEE_FIXED;
+    const fee = await getFeeForCategory(body.categoryHint);
 
     const out = sourcingDecision({
       expectedVk: body.expectedVk,
       ek: body.ek,
       shippingCost,
-      feePct,
-      feeFixed,
+      feePct: fee.feePct,
+      feeFixed: fee.feeFixed,
     });
 
-    res.json({ ok: true, ...out, shippingCost, feePct, feeFixed });
+    res.json({ ok: true, ...out, shippingCost, feePct: fee.feePct, feeFixed: fee.feeFixed, feeSource: fee.source });
   } catch (e) {
     res.status(400).json({ ok: false, error: String(e.message || e) });
   }
 });
 
+app.get("/settings", async (req, res) => {
+  try {
+    const settings = await getSettingsMap();
+    res.json({ ok: true, settings });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.post("/settings", async (req, res) => {
+  const schema = z.object({
+    key: z.string().min(1),
+    value: z.union([z.string(), z.number(), z.boolean()]),
+    type: z.enum(["string", "number", "boolean"]).optional(),
+    note: z.string().optional(),
+  });
+
+  try {
+    const body = schema.parse(req.body);
+    await callSheets({ action: "upsertSetting", key: body.key, value: body.value, type: body.type || typeof body.value, note: body.note || "" });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.get("/todos", async (req, res) => {
+  try {
+    const data = await callSheets({ action: "getSheet", sheet: "Todos" });
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.post("/todos", async (req, res) => {
+  const schema = z.object({
+    title: z.string().min(1),
+    status: z.string().optional(),
+    owner: z.string().optional(),
+    note: z.string().optional(),
+  });
+
+  try {
+    const body = schema.parse(req.body);
+    const out = await callSheets({ action: "addTodo", ...body });
+    res.json(out);
+  } catch (e) {
+    res.status(400).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.post("/bootstrap", async (req, res) => {
+  try {
+    const out = await callSheets({ action: "bootstrap" });
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
 app.post("/command", async (req, res) => {
-  // Placeholder for goal edits. Next: write/read Settings tab via Apps Script.
-  res.json({ ok: false, error: "not_implemented_yet" });
+  const schema = z.object({
+    command: z.enum(["set_gkv_limit", "set_profit_goal", "add_todo", "bootstrap"]),
+    value: z.union([z.string(), z.number()]).optional(),
+    title: z.string().optional(),
+    note: z.string().optional(),
+  });
+
+  try {
+    const body = schema.parse(req.body);
+
+    if (body.command === "bootstrap") {
+      return res.json(await callSheets({ action: "bootstrap" }));
+    }
+
+    if (body.command === "set_gkv_limit") {
+      await callSheets({ action: "upsertSetting", key: "gkvLimit", value: body.value, type: "number", note: body.note || "Updated via command" });
+      return res.json({ ok: true, command: body.command });
+    }
+
+    if (body.command === "set_profit_goal") {
+      await callSheets({ action: "upsertSetting", key: "profitGoal", value: body.value, type: "number", note: body.note || "Updated via command" });
+      return res.json({ ok: true, command: body.command });
+    }
+
+    if (body.command === "add_todo") {
+      const out = await callSheets({ action: "addTodo", title: body.title || String(body.value || ""), note: body.note || "", status: "open", owner: "Raul" });
+      return res.json({ ok: true, command: body.command, result: out });
+    }
+
+    res.status(400).json({ ok: false, error: "unsupported_command" });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: String(e.message || e) });
+  }
 });
 
 const port = process.env.PORT || 8787;

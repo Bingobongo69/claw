@@ -18,6 +18,7 @@
     .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}.chipRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);font-size:12px;color:var(--muted)}.chip.active{background:rgba(96,165,250,0.18);color:#dbeafe;border-color:rgba(96,165,250,0.4)}
     .seoBtn{margin-top:10px;width:100%;padding:10px;border:none;border-radius:14px;font-weight:700;color:white;background:linear-gradient(120deg,#2563eb,#7c3aed)}.seoBtn:disabled{opacity:0.7}
     .seoSuggestion{margin-top:8px;border-radius:14px;border:1px solid var(--border);padding:10px;background:rgba(255,255,255,0.03);font-size:12px;color:var(--muted);white-space:pre-line}
+    .seoStatus{margin-top:6px;font-size:12px;color:var(--muted)}
     .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.saleTitle{font-size:13px;font-weight:600;color:var(--muted)} .saleRevenue{font-size:24px;font-weight:800;line-height:1}.saleProfit{font-size:13px;margin-top:6px}.saleMeta,.taskMeta,.costRow{font-size:12px;color:var(--muted)} .costRow{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}.profitPos{color:var(--green);font-weight:700}.profitNeg{color:var(--red);font-weight:700}
     label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input{width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)} button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155}.btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)} .calcResult{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
     .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(520px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
@@ -49,6 +50,8 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const state = { metrics:null, sales:null, settings:null, inventory:null, audit:[], yearGoal:25000, dayGoal:2000, range:7 };
+    let bucketMemo = {};
+    let salesSignature = '';
     async function api(url, opts) { const res = await fetch(url, opts); if (!res.ok) throw new Error(await res.text()); return res.json(); }
     const euro = (v) => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(v||0));
 
@@ -56,20 +59,54 @@
     function setLoading() { $('kpis').innerHTML = Array.from({length:4}).map(()=>`<div class="glass card skeleton" style="height:96px"></div>`).join(''); $('salesList').innerHTML = Array.from({length:5}).map(()=>`<div class="glass sale skeleton" style="height:100px"></div>`).join(''); $('chartWrap').innerHTML = `<div class="skeleton" style="height:220px;border-radius:16px"></div>`; $('auditList').innerHTML = Array.from({length:4}).map(()=>`<div class="glass sale skeleton" style="height:92px"></div>`).join(''); }
     function getTodayListingValue() { const rows = state.inventory || []; const today = new Date().toISOString().slice(0,10); return rows.filter(r => toDateString(r.date) === today).reduce((sum, r) => sum + Number(r.listPrice || 0), 0); }
 
+    const monthFormatter = new Intl.DateTimeFormat('de-DE', { month: 'short' });
+
     function buildBuckets(days) {
+      const memoKey = `${days}_${salesSignature}`;
+      if (bucketMemo[memoKey]) return bucketMemo[memoKey];
       const rows = state.sales || [];
-      return Array.from({length:days}).map((_, i) => {
-        const d = new Date(); d.setUTCDate(d.getUTCDate() - (days - 1 - i));
-        const key = d.toISOString().slice(0,10);
-        const dayRows = rows.filter(r => toDateString(r.date) === key);
-        return {
-          key,
-          label: days <= 31 ? key.slice(5) : key.slice(2,7),
-          revenue: dayRows.reduce((a,r)=>a+Number(r.vk||0),0),
-          profit: dayRows.reduce((a,r)=>a+Number(r.profit||0),0),
-          cost: dayRows.reduce((a,r)=>a+Number(r.shippingCost||0)+Number(r.fees||0),0),
-        };
-      });
+      const now = new Date();
+      const start = new Date();
+      start.setUTCDate(start.getUTCDate() - (days - 1));
+
+      const dataset = [];
+      if (days >= 90) {
+        const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+        const limit = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        while (cursor <= limit) {
+          const monthKey = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}`;
+          const monthRows = rows.filter((r) => {
+            const ds = toDateString(r.date);
+            return ds >= start.toISOString().slice(0, 10) && ds.slice(0, 7) === monthKey;
+          });
+          dataset.push({
+            key: monthKey,
+            label: `${monthFormatter.format(cursor)} ${String(cursor.getUTCFullYear()).slice(2)}`,
+            revenue: monthRows.reduce((a, r) => a + Number(r.vk || 0), 0),
+            profit: monthRows.reduce((a, r) => a + Number(r.profit || 0), 0),
+            cost: monthRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
+          });
+          cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        }
+      } else {
+        for (let i = 0; i < days; i++) {
+          const d = new Date();
+          d.setUTCDate(d.getUTCDate() - (days - 1 - i));
+          const key = d.toISOString().slice(0, 10);
+          const dayRows = rows.filter((r) => toDateString(r.date) === key);
+          const baseLabel = key.slice(5);
+          const showLabel = days <= 7 || days > 7 && days < 30 || (days === 30 && (i % 7 === 0 || i === days - 1));
+          dataset.push({
+            key,
+            label: showLabel ? baseLabel : '',
+            revenue: dayRows.reduce((a, r) => a + Number(r.vk || 0), 0),
+            profit: dayRows.reduce((a, r) => a + Number(r.profit || 0), 0),
+            cost: dayRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
+          });
+        }
+      }
+      bucketMemo[memoKey] = dataset;
+      return dataset;
     }
 
     function renderChart(days) {
@@ -123,6 +160,21 @@
       return '<span style="color:#22c55e;font-weight:700">NIEDRIG</span>';
     }
 
+    function calculateSuggestedPrice(item) {
+      const base = Number(item?.price?.value);
+      if (!base) return null;
+      const hasCompetitorIssue = (item.issues || []).some((issue) => issue.code === 'competitor_pending');
+      const highScore = (item.score || 0) >= 70;
+      let delta = -0.05;
+      let label = '-5 % schnellerer Verkauf';
+      if (highScore && !hasCompetitorIssue) {
+        delta = 0.05;
+        label = '+5 % Premium-Preis';
+      }
+      const price = Number((base * (1 + delta)).toFixed(2));
+      return { price, label };
+    }
+
     function renderAudit() {
       const rows = state.audit || [];
       if (!rows.length) {
@@ -130,12 +182,14 @@
         return;
       }
       $('auditList').innerHTML = rows.map(item => {
+        const priceSuggestion = calculateSuggestedPrice(item);
+        const priceLine = priceSuggestion ? `<div class="subtitle" style="margin-top:6px">Preisvorschlag: ${euro(priceSuggestion.price)} (${priceSuggestion.label})</div>` : '';
         const issues = (item.issues || []).slice(0, 3).map(issue => `<span class="chip" style="border-color:rgba(255,255,255,0.2);color:${issue.priority === 'high' ? '#fecdd3' : issue.priority === 'medium' ? '#fde68a' : '#cbd5f5'}">${issue.code}</span>`).join('');
         return `<div class="glass sale">
           <div class="saleTop">
             <div>
               <div class="saleTitle">${item.sku || '-'}</div>
-              <div class="saleRevenue">Score ${item.score ?? 0}</div>
+              <div class="saleRevenue">Audit-Score ${item.score ?? 0}</div>
               <div class="saleProfit">${priorityBadge(item.priority || 'low')}</div>
             </div>
             <div class="saleMeta" style="text-align:right">
@@ -144,44 +198,69 @@
             </div>
           </div>
           <div class="taskMeta" style="margin-top:6px">${item.title}</div>
-          <div class="chipRow" style="margin-top:8px">${issues || '<span class="subtitle">Keine Issues erkannt</span>'}</div>
-          <button class="seoBtn" data-listing="${item.listingId}">Optimieren</button>
+          ${priceLine}
+          <div class="chipRow" style="margin-top:8px">${issues || '<span class="subtitle">Keine Hinweise erkannt</span>'}</div>
+          <button class="seoBtn" data-listing="${item.listingId}">Jetzt optimieren</button>
           <div class="seoSuggestion" data-seo="${item.listingId}" style="display:none"></div>
+          <div class="seoStatus" data-status="${item.listingId}"></div>
         </div>`;
       }).join('');
-      attachSeoHandlers();
+      attachOptimizeHandlers();
     }
 
-    function generateSeoSuggestion(item) {
-      const baseTitle = (item.title || '').trim();
-      const cleanTitle = baseTitle || 'Top-Angebot';
-      const priceSuggestion = item.price?.value ? Math.max(1, (item.price.value * 0.98)).toFixed(2) : '';
+    function generateSeoSuggestion(item, priceSuggestion) {
+      const baseTitle = (item.title || '').trim() || 'Top-Angebot';
+      const optimizedTitle = `${baseTitle} | Sofort lieferbar`;
       const currency = item.price?.currency || 'EUR';
-      const bulletPoints = [
-        '✅ Sichtbar im relevanten Keyword-Cluster',
-        '🚚 Schneller Versand & geprüfte Qualität',
-        '💬 Nutzen & Zustand klar herausstellen'
-      ];
-      return `Titel: ${cleanTitle} | Jetzt sichern!
-Preisempfehlung: ${priceSuggestion} ${currency}
+      const recommendedPrice = priceSuggestion?.price ?? item.price?.value ?? 0;
+      const description = `${baseTitle} jetzt sichern – Zustand, Zubehör und Besonderheiten klar benennen. Füge 2-3 Stichpunkte zu Nutzen & Versand hinzu.`;
+      const preview = `Titel: ${optimizedTitle}
+Preisempfehlung: ${recommendedPrice.toFixed(2)} ${currency}
 Beschreibung:
-${cleanTitle} jetzt verfügbar – Zustand prüfen, USP nennen und in 2-3 Sätze Benefits hervorheben.
-Keywords: ${cleanTitle.split(' ').slice(0,6).join(', ')}
-Tipps:
-- ${bulletPoints.join('\n- ')}`;
+${description}`;
+      return {
+        preview,
+        payload: {
+          title: optimizedTitle,
+          description,
+          price: Number(recommendedPrice.toFixed(2))
+        }
+      };
     }
 
-    function attachSeoHandlers() {
+    function attachOptimizeHandlers() {
       document.querySelectorAll('.seoBtn').forEach((btn) => {
-        btn.onclick = () => {
+        btn.onclick = async () => {
           const id = btn.dataset.listing;
           const listing = (state.audit || []).find((entry) => String(entry.listingId) === String(id));
           if (!listing) return;
-          const suggestion = generateSeoSuggestion(listing);
-          const container = document.querySelector(`[data-seo="${id}"]`);
-          if (container) {
-            container.textContent = suggestion;
-            container.style.display = 'block';
+          const priceSuggestion = calculateSuggestedPrice(listing);
+          const seo = generateSeoSuggestion(listing, priceSuggestion);
+          const previewNode = document.querySelector(`[data-seo="${id}"]`);
+          const statusNode = document.querySelector(`[data-status="${id}"]`);
+          if (previewNode) {
+            previewNode.textContent = seo.preview;
+            previewNode.style.display = 'block';
+          }
+          if (!seo.payload) return;
+          try {
+            btn.disabled = true;
+            if (statusNode) statusNode.textContent = 'Sende an eBay…';
+            await api('/audit/revise', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                listingId: String(listing.listingId),
+                title: seo.payload.title,
+                description: seo.payload.description,
+                price: seo.payload.price
+              })
+            });
+            if (statusNode) statusNode.textContent = 'Erfolgreich übertragen';
+          } catch (error) {
+            if (statusNode) statusNode.textContent = 'Fehler beim Senden';
+          } finally {
+            btn.disabled = false;
           }
         };
       });
@@ -203,7 +282,12 @@ Tipps:
       }
     }
 
-    async function loadSales() { const raw = await api('/sales'); state.sales = raw.rows || []; }
+    async function loadSales() {
+      const raw = await api('/sales');
+      state.sales = raw.rows || [];
+      salesSignature = `${state.sales.length}_${state.sales[0]?.orderId || ''}`;
+      bucketMemo = {};
+    }
     async function loadInventory() { const raw = await api('/inventory'); const idx = Object.fromEntries((raw.header || []).map((h, i) => [String(h).trim(), i])); const rows = raw.rows || []; const dateIdx = idx['Datum'] ?? idx['Date'] ?? 5; const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6; state.inventory = rows.map(r => ({ date:r[dateIdx], listPrice:Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0 })); }
     async function loadSettings() {
       const raw = await api('/settings');

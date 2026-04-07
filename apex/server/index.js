@@ -3,6 +3,7 @@ import express from "express";
 import fetch from "node-fetch";
 import { z } from "zod";
 import { buildListingAudit } from "./lib/audit.js";
+import { reviseEbayItem } from "./lib/ebay.js";
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -241,6 +242,22 @@ app.post("/audit/sync", async (req, res) => {
     ]);
     await callSheets({ action: "writeAuditRows", rows });
     res.json({ ok: true, count: rows.length });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.post("/audit/revise", async (req, res) => {
+  try {
+    const schema = z.object({
+      listingId: z.string().min(1),
+      title: z.string().min(5),
+      description: z.string().min(10),
+      price: z.number().positive()
+    });
+    const body = schema.parse(req.body);
+    await reviseEbayItem({ itemId: body.listingId, title: body.title, description: body.description, price: body.price });
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
   }

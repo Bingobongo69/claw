@@ -12,6 +12,15 @@ const EBAY_TRADING_ENDPOINT = process.env.EBAY_TRADING_ENDPOINT || "https://api.
 
 const tradingParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", parseTagValue: true });
 
+function xmlEscape(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 let tokenCache = { accessToken: null, expiresAt: 0 };
 
 function requireEbayCreds() {
@@ -171,4 +180,19 @@ export async function fetchSellerListings({ entriesPerPage = 100, maxPages = 10 
     page += 1;
   }
   return items;
+}
+
+export async function reviseEbayItem({ itemId, title, description, price }) {
+  if (!itemId) throw new Error("ItemID required for revise");
+  const fields = ["<ItemID>" + xmlEscape(itemId) + "</ItemID>"];
+  if (title) fields.push(`<Title>${xmlEscape(title)}</Title>`);
+  if (description) fields.push(`<Description>${xmlEscape(description)}</Description>`);
+  if (price) fields.push(`<StartPrice currencyID="EUR">${Number(price).toFixed(2)}</StartPrice>`);
+  const xml = `<?xml version="1.0" encoding="utf-8"?>
+    <ReviseFixedPriceItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+      <Item>
+        ${fields.join("\n")}
+      </Item>
+    </ReviseFixedPriceItemRequest>`;
+  await callTradingApi("ReviseFixedPriceItem", xml);
 }

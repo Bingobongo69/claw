@@ -46,3 +46,17 @@
 ## Ops notes
 - OpenClaw memory should always be updated after Apex work
 - Use this file as stable project state so prior work is not lost between sessions
+
+## Upcoming roadmap (2026-04-07)
+1. **Listings Audit Tab** (Glide)
+   - Inputs: aktive Listings (Titel, Beschreibung, Preis, Bilder, Keywords, Marktpreis)
+   - Outputs: Verbesserungs­vorschläge, Score (0-100), Priorität (hoch/mittel/niedrig)
+2. **Preis-/Titel-Vorschläge + 1-Klick-Übernahme**
+   - Vorschlagsliste mit Checkbox/Button → via eBay-API direkt anwenden (Titel/Beschreibung/Preis)
+   - Voraussetzung: eBay API OAuth mit Listing-Read/Write
+3. **Weitere Tabs**
+   - Repricing (langsame Listings erkennen, Limits für Auto-Anpassung)
+   - Restock/Einkauf (schnelldrehend, nachkaufen, Tote Bestände)
+   - Deal Pipeline (Funde, Marge, Status kaufen/beobachten/verwerfen)
+   - Ops Cockpit (heute eingestellt/verkauft, Gewinn, offene Tasks, Listings mit Bedarf)
+   - Alerts (zu teuer, Marge zu niedrig, schlechter Titel, alter Bestand, Preis unter Markt)

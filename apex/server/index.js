@@ -177,6 +177,9 @@ app.get("/metrics", async (req, res) => {
     const idx = Object.fromEntries(header.map((h, i) => [String(h).trim(), i]));
     const iDate = idx["Datum"] ?? 0;
     const iProfit = idx["Gewinn"] ?? 8;
+    const iOrder = idx["Order-ID"] ?? idx["OrderID"] ?? idx["ID"] ?? 9;
+
+    const validRows = rows.filter((r) => String(r[iOrder] ?? "").trim() !== "");
 
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -185,7 +188,7 @@ app.get("/metrics", async (req, res) => {
     let totalProfit = 0;
     let count = 0;
 
-    for (const r of rows) {
+    for (const r of validRows) {
       count++;
       const profit = Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0;
       totalProfit += profit;
@@ -237,6 +240,41 @@ app.post("/sourcing/check", async (req, res) => {
     res.json({ ok: true, ...out, shippingCost, feePct: fee.feePct, feeFixed: fee.feeFixed, feeSource: fee.source });
   } catch (e) {
     res.status(400).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.get("/sales", async (req, res) => {
+  try {
+    const data = await callSheets({ action: "getSales" });
+    if (!data.ok) return res.status(500).json(data);
+    const idx = Object.fromEntries((data.header || []).map((h, i) => [String(h).trim(), i]));
+    const iDate = idx["Datum"] ?? 0;
+    const iTitle = idx["Titel"] ?? idx["Title"] ?? 1;
+    const iProfit = idx["Gewinn"] ?? 8;
+    const iVk = idx["VK"] ?? 7;
+    const iOrder = idx["Order-ID"] ?? idx["OrderID"] ?? idx["ID"] ?? 9;
+    const rows = (data.rows || [])
+      .filter((r) => String(r[iOrder] ?? "").trim() !== "")
+      .map((r) => ({
+        date: r[iDate],
+        title: r[iTitle],
+        profit: Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0,
+        vk: Number(String(r[iVk] ?? "0").replace(",", ".")) || 0,
+        orderId: String(r[iOrder] ?? "").trim(),
+      }))
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    res.json({ ok: true, rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.get("/inventory", async (req, res) => {
+  try {
+    const data = await callSheets({ action: "getInventory" });
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
   }
 });
 
@@ -344,7 +382,7 @@ app.post("/command", async (req, res) => {
 });
 
 app.use((req, res, next) => {
-  if (["/health", "/sheets/", "/metrics", "/sourcing/", "/settings", "/todos", "/fees", "/bootstrap", "/command"].some((p) => req.path.startsWith(p))) {
+  if (["/health", "/sheets/", "/metrics", "/sales", "/inventory", "/sourcing/", "/settings", "/todos", "/fees", "/bootstrap", "/command"].some((p) => req.path.startsWith(p))) {
     return next();
   }
   if (req.method !== "GET") return next();

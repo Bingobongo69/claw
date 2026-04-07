@@ -38,6 +38,17 @@ function doPost(e) {
       return _json({ ok: true, header: salesHeader, rows: salesRows });
     }
 
+    if (action === "getInventory") {
+      var stockSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Warenbestand");
+      if (!stockSheet) return _json({ ok: false, error: "sheet_not_found", sheet: "Warenbestand" });
+      var stockLastRow = stockSheet.getLastRow();
+      var stockLastCol = stockSheet.getLastColumn();
+      if (stockLastRow < 2) return _json({ ok: true, header: stockSheet.getRange(1,1,1,stockLastCol).getValues()[0], rows: [] });
+      var stockHeader = stockSheet.getRange(1,1,1,stockLastCol).getValues()[0];
+      var stockRows = stockSheet.getRange(2,1,stockLastRow-1,stockLastCol).getValues();
+      return _json({ ok: true, header: stockHeader, rows: stockRows });
+    }
+
     if (action === "ensureFeesSheet") {
       ensureFeesSheet_();
       return _json({ ok: true });

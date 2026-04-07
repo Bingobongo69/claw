@@ -4,6 +4,7 @@ import { z } from "zod";
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
+app.use(express.static(new URL("../public", import.meta.url).pathname));
 
 const WEBAPP_URL = process.env.APEX_SHEETS_WEBAPP_URL;
 if (!WEBAPP_URL) {
@@ -28,11 +29,7 @@ async function callSheets(body) {
   return json;
 }
 
-// --- Domain logic ---
-
 function parseSkuParts(sku = "") {
-  // Raul example: 01_01_01_01_EK2_VK_5
-  // Convention here: EK = Einkauf, VK token inside SKU = Versandkosten.
   const norm = String(sku).trim();
   const tokens = norm.split("_").filter(Boolean);
 
@@ -94,7 +91,6 @@ function sourcingDecision({ expectedVk, ek, shippingCost, feePct, feeFixed }) {
   return { go: go ? "GO" : "NO-GO", profit, margin, fees };
 }
 
-// Fees: user enters percent values in the Fees sheet (e.g. 12 for 12%)
 const DEFAULT_FEE_PCT = 0.12;
 const DEFAULT_FEE_FIXED = 0.35;
 const DEFAULT_GKV_LIMIT = 578;
@@ -178,7 +174,6 @@ app.get("/metrics", async (req, res) => {
 
     const header = data.header;
     const rows = data.rows;
-
     const idx = Object.fromEntries(header.map((h, i) => [String(h).trim(), i]));
     const iDate = idx["Datum"] ?? 0;
     const iProfit = idx["Gewinn"] ?? 8;
@@ -194,7 +189,6 @@ app.get("/metrics", async (req, res) => {
       count++;
       const profit = Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0;
       totalProfit += profit;
-
       const d = r[iDate];
       const ds = d instanceof Date ? d.toISOString().slice(0, 7) : String(d).slice(0, 7);
       if (ds === ym) monthProfit += profit;
@@ -231,9 +225,7 @@ app.post("/sourcing/check", async (req, res) => {
     const body = schema.parse(req.body);
     const { vp } = parseSkuParts(body.sku || "");
     const shippingCost = (vp ?? 0);
-
     const fee = await getFeeForCategory(body.categoryHint);
-
     const out = sourcingDecision({
       expectedVk: body.expectedVk,
       ek: body.ek,
@@ -245,6 +237,15 @@ app.post("/sourcing/check", async (req, res) => {
     res.json({ ok: true, ...out, shippingCost, feePct: fee.feePct, feeFixed: fee.feeFixed, feeSource: fee.source });
   } catch (e) {
     res.status(400).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.get("/fees", async (req, res) => {
+  try {
+    const data = await callSheets({ action: "getSheet", sheet: "Fees" });
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
   }
 });
 
@@ -323,17 +324,14 @@ app.post("/command", async (req, res) => {
     if (body.command === "bootstrap") {
       return res.json(await callSheets({ action: "bootstrap" }));
     }
-
     if (body.command === "set_gkv_limit") {
       await callSheets({ action: "upsertSetting", key: "gkvLimit", value: body.value, type: "number", note: body.note || "Updated via command" });
       return res.json({ ok: true, command: body.command });
     }
-
     if (body.command === "set_profit_goal") {
       await callSheets({ action: "upsertSetting", key: "profitGoal", value: body.value, type: "number", note: body.note || "Updated via command" });
       return res.json({ ok: true, command: body.command });
     }
-
     if (body.command === "add_todo") {
       const out = await callSheets({ action: "addTodo", title: body.title || String(body.value || ""), note: body.note || "", status: "open", owner: "Raul" });
       return res.json({ ok: true, command: body.command, result: out });
@@ -343,6 +341,13 @@ app.post("/command", async (req, res) => {
   } catch (e) {
     res.status(400).json({ ok: false, error: String(e.message || e) });
   }
+});
+
+app.get("*", (req, res, next) => {
+  if (["/health", "/sheets/", "/metrics", "/sourcing/", "/settings", "/todos", "/fees", "/bootstrap", "/command"].some((p) => req.path.startsWith(p))) {
+    return next();
+  }
+  res.sendFile(new URL("../public/index.html", import.meta.url).pathname);
 });
 
 const port = process.env.PORT || 8787;

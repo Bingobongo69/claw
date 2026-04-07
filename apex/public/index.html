@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apex</title>
+  <style>
+    :root { --bg:#0f1115; --card:#171a21; --muted:#9aa4b2; --text:#f5f7fb; --accent:#4f8cff; --ok:#19c37d; --bad:#ff5d73; --border:#2a3140; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    .wrap { max-width:1100px; margin:0 auto; padding:24px; }
+    h1,h2 { margin:0 0 12px; }
+    .muted { color:var(--muted); }
+    .grid { display:grid; gap:16px; }
+    .cards { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+    .two { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; }
+    .kpi { font-size:28px; font-weight:700; margin-top:8px; }
+    label { display:block; font-size:14px; margin:10px 0 6px; color:var(--muted); }
+    input, select, textarea, button { width:100%; border-radius:10px; border:1px solid var(--border); background:#0d1016; color:var(--text); padding:12px; }
+    button { background:var(--accent); border:none; font-weight:600; cursor:pointer; }
+    button.secondary { background:#232937; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .result-go { color:var(--ok); font-weight:700; }
+    .result-bad { color:var(--bad); font-weight:700; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { padding:10px 8px; border-bottom:1px solid var(--border); text-align:left; }
+    .pill { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; background:#232937; color:var(--muted); }
+    .topbar { display:flex; justify-content:space-between; align-items:end; gap:16px; margin-bottom:20px; }
+    @media (max-width: 640px) { .row { grid-template-columns:1fr; } .topbar { flex-direction:column; align-items:start; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>Apex</h1>
+        <div class="muted">E-Commerce Dashboard, Sourcing, Settings, Todos</div>
+      </div>
+      <span class="pill" id="statusPill">lädt…</span>
+    </div>
+
+    <section class="grid cards" id="metrics"></section>
+
+    <section class="grid two" style="margin-top:16px;">
+      <div class="card">
+        <h2>Sourcing Check</h2>
+        <div class="row">
+          <div>
+            <label>Expected VK</label>
+            <input id="expectedVk" type="number" step="0.01" value="25" />
+          </div>
+          <div>
+            <label>EK</label>
+            <input id="ek" type="number" step="0.01" value="8" />
+          </div>
+        </div>
+        <label>SKU</label>
+        <input id="sku" value="01_01_01_01_EK2_VK_5" />
+        <label>Kategorie</label>
+        <input id="categoryHint" value="Elektronik" />
+        <div style="margin-top:12px;"><button id="runSourcing">Prüfen</button></div>
+        <div id="sourcingResult" style="margin-top:14px;" class="muted">Noch keine Prüfung.</div>
+      </div>
+
+      <div class="card">
+        <h2>Settings</h2>
+        <div id="settingsForm"></div>
+        <div style="margin-top:12px;"><button class="secondary" id="saveSettings">Settings speichern</button></div>
+      </div>
+    </section>
+
+    <section class="grid two" style="margin-top:16px;">
+      <div class="card">
+        <h2>Todos</h2>
+        <div class="row">
+          <input id="todoTitle" placeholder="Neue Aufgabe" />
+          <button id="addTodo">Todo hinzufügen</button>
+        </div>
+        <div id="todos" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>Fees</h2>
+        <div id="fees"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const settingsKeys = ["gkvLimit", "profitGoal", "defaultFeePct", "defaultFeeFix", "currency"];
+
+    async function j(url, opts) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    function euro(v) { return new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR' }).format(Number(v || 0)); }
+    function pct(v) { return `${(Number(v || 0) * 100).toFixed(1)}%`; }
+
+    async function loadMetrics() {
+      const data = await j('/metrics');
+      el('metrics').innerHTML = [
+        ['Monatsgewinn', euro(data.monthProfit)],
+        ['Gesamtgewinn', euro(data.totalProfit)],
+        ['GKV Rest', euro(data.gkvRemaining)],
+        ['Sales', data.salesCount],
+        ['Ziel', euro(data.roadTo15kGoal)],
+        ['Fortschritt', euro(data.roadTo15kProgress)],
+      ].map(([k,v]) => `<div class="card"><div class="muted">${k}</div><div class="kpi">${v}</div></div>`).join('');
+    }
+
+    async function loadSettings() {
+      const data = await j('/settings');
+      el('settingsForm').innerHTML = settingsKeys.map(key => `
+        <label>${key}</label>
+        <input data-key="${key}" value="${data.settings[key] ?? ''}" />
+      `).join('');
+    }
+
+    async function saveSettings() {
+      const inputs = [...document.querySelectorAll('#settingsForm input')];
+      for (const input of inputs) {
+        const key = input.dataset.key;
+        const raw = input.value;
+        const isNumber = ['gkvLimit','profitGoal','defaultFeePct','defaultFeeFix'].includes(key);
+        await j('/settings', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ key, value: isNumber ? Number(raw) : raw, type: isNumber ? 'number' : 'string', note:'Updated from Apex UI' })
+        });
+      }
+      await loadMetrics();
+      alert('Settings gespeichert');
+    }
+
+    async function runSourcing() {
+      const body = {
+        expectedVk: Number(el('expectedVk').value),
+        ek: Number(el('ek').value),
+        sku: el('sku').value,
+        categoryHint: el('categoryHint').value,
+      };
+      const out = await j('/sourcing/check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      el('sourcingResult').innerHTML = `
+        <div class="${out.go === 'GO' ? 'result-go' : 'result-bad'}">${out.go}</div>
+        <div>Profit: ${euro(out.profit)}</div>
+        <div>Marge: ${pct(out.margin)}</div>
+        <div>Fees: ${euro(out.fees)}</div>
+        <div>Shipping: ${euro(out.shippingCost)}</div>
+      `;
+    }
+
+    async function loadTodos() {
+      const data = await j('/todos');
+      const rows = data.rows || [];
+      if (!rows.length) { el('todos').innerHTML = '<div class="muted">Keine Todos.</div>'; return; }
+      el('todos').innerHTML = `<table><thead><tr><th>Created</th><th>Title</th><th>Status</th><th>Owner</th></tr></thead><tbody>${rows.map(r => `<tr><td>${r[0] || ''}</td><td>${r[1] || ''}</td><td>${r[2] || ''}</td><td>${r[3] || ''}</td></tr>`).join('')}</tbody></table>`;
+    }
+
+    async function addTodo() {
+      const title = el('todoTitle').value.trim();
+      if (!title) return;
+      await j('/todos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, status:'open', owner:'Raul', note:'Added from Apex UI' }) });
+      el('todoTitle').value = '';
+      await loadTodos();
+    }
+
+    async function loadFees() {
+      const data = await j('/fees');
+      const rows = data.rows || [];
+      if (!rows.length) { el('fees').innerHTML = '<div class="muted">Keine Fees.</div>'; return; }
+      el('fees').innerHTML = `<table><thead><tr>${(data.header || []).map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+
+    async function boot() {
+      try {
+        await Promise.all([loadMetrics(), loadSettings(), loadTodos(), loadFees()]);
+        el('statusPill').textContent = 'online';
+      } catch (e) {
+        el('statusPill').textContent = 'Fehler';
+        console.error(e);
+      }
+    }
+
+    el('runSourcing').onclick = runSourcing;
+    el('saveSettings').onclick = saveSettings;
+    el('addTodo').onclick = addTodo;
+    boot();
+  </script>
+</body>
+</html>

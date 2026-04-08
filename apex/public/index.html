@@ -94,6 +94,27 @@
           });
           cursor.setUTCMonth(cursor.getUTCMonth() + 1);
         }
+      } else if (days === 30) {
+        const blockSize = 7;
+        for (let offset = 0; offset < days; offset += blockSize) {
+          const blockStart = new Date();
+          blockStart.setUTCDate(blockStart.getUTCDate() - (days - 1 - offset));
+          const blockEnd = new Date(blockStart);
+          blockEnd.setUTCDate(blockEnd.getUTCDate() + blockSize - 1);
+          const startKey = blockStart.toISOString().slice(0, 10);
+          const endKey = blockEnd.toISOString().slice(0, 10);
+          const blockRows = rows.filter((r) => {
+            const ds = toDateString(r.date);
+            return ds >= startKey && ds <= endKey;
+          });
+          dataset.push({
+            key: `${startKey}_${endKey}`,
+            label: `${startKey.slice(5)}–${endKey.slice(5)}`,
+            revenue: blockRows.reduce((a, r) => a + Number(r.vk || 0), 0),
+            profit: blockRows.reduce((a, r) => a + Number(r.profit || 0), 0),
+            cost: blockRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
+          });
+        }
       } else {
         for (let i = 0; i < days; i++) {
           const d = new Date();

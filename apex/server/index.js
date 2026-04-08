@@ -60,6 +60,15 @@ function normalizeDateString(input) {
   return s.slice(0, 10);
 }
 
+function cleanKeywords(input = "") {
+  return String(input)
+    .replace(/[_-]/g, " ")
+    .replace(/\b(?:EK|VK)[^\s]*\b/gi, "")
+    .replace(/\b\d{2}_\d{2}_\d{2}_[^\s]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function getSettingsMap() {
   const r = await callSheets({ action: "getSettings" });
   if (!r.ok) return {};
@@ -290,12 +299,20 @@ app.post("/audit/insight", async (req, res) => {
       currentPrice: z.number().positive().optional()
     });
     const body = schema.parse(req.body || {});
-    const keywords = (body.sku && body.sku.slice(0, 80)) || body.title || "";
+    const cleanedTitle = cleanKeywords(body.title || "");
+    const cleanedSku = cleanKeywords(body.sku || "");
+    const searchTerm = (cleanedSku || cleanedTitle).slice(0, 80);
     let completed = [];
-    try {
-      completed = await findCompletedItems({ keywords, limit: 15 });
-    } catch (err) {
-      console.warn("findCompletedItems failed", err.message || err);
+    if (searchTerm) {
+      try {
+        completed = await findCompletedItems({ keywords: searchTerm, limit: 15 });
+        if (!completed.length && cleanedTitle.includes(" ")) {
+          const fallbackTerm = cleanedTitle.split(" ").slice(0, 2).join(" ");
+          completed = await findCompletedItems({ keywords: fallbackTerm, limit: 10 });
+        }
+      } catch (err) {
+        console.warn("findCompletedItems failed", err.message || err);
+      }
     }
     const competitorCount = completed.length;
     const avgPrice = competitorCount ? completed.reduce((sum, item) => sum + item.price, 0) / competitorCount : null;
@@ -310,7 +327,7 @@ app.post("/audit/insight", async (req, res) => {
     if (body.historyPrice) reasonParts.push(`Letzter Verkauf: ${body.historyPrice.toFixed(2)} €`);
     if (adjustment > 0) reasonParts.push("Score hoch → +5 % Aufschlag");
     if (adjustment < 0) reasonParts.push("Viele Wettbewerber → -2 %");
-    const reason = reasonParts.join(". ") || "Keine Vergleichsdaten gefunden";
+    const reason = reasonParts.join(". ") || "Keine Vergleichsdaten – Basispreis genutzt";
     res.json({ ok: true, competitorCount, averagePrice: avgPrice, demandHigh, suggestedPrice, reason });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });

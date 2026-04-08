@@ -208,7 +208,18 @@ export async function findCompletedItems({ keywords, limit = 15 }) {
     keywords,
     "paginationInput.entriesPerPage": String(limit)
   });
-  const res = await fetch(`https://svcs.ebay.com/services/search/FindingService/v1?${params.toString()}`);
+  params.append("itemFilter(0).name", "Condition");
+  params.append("itemFilter(0).value", "Used");
+  params.append("itemFilter(1).name", "ListingType");
+  params.append("itemFilter(1).value", "FixedPrice");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  let res;
+  try {
+    res = await fetch(`https://svcs.ebay.com/services/search/FindingService/v1?${params.toString()}`, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error(`eBay finding API ${res.status}`);
   const data = await res.json();
   const items = data?.findCompletedItemsResponse?.[0]?.searchResult?.[0]?.item || [];

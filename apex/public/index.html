@@ -349,7 +349,9 @@ ${description}`;
       for (const item of listings) {
         try {
           const historyPrice = findHistoryPrice(item);
-          const payload = { listingId: String(item.listingId), title: item.title, sku: item.sku, historyPrice, currentPrice: item.price?.value };
+          const payload = { listingId: String(item.listingId), title: item.title, sku: item.sku };
+          if (historyPrice) payload.historyPrice = historyPrice;
+          if (item.price?.value) payload.currentPrice = item.price.value;
           const result = await api('/audit/insight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           state.auditInsights[item.listingId] = result;
           renderAudit();

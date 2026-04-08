@@ -67,9 +67,11 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const state = { metrics:null, sales:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7 };
-    let bucketMemo = {};
+    let bucketMemo = new Map();
     let salesSignature = '';
     let salesStats = {};
+    let activeSection = 'dashboardSection';
+    let inventoryListDirty = true;
     async function api(url, opts) { const res = await fetch(url, opts); if (!res.ok) throw new Error(await res.text()); return res.json(); }
     const euro = (v) => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(v||0));
 
@@ -108,62 +110,50 @@
 
     function buildBuckets(days) {
       const memoKey = `${days}_${salesSignature}`;
-      if (bucketMemo[memoKey]) return bucketMemo[memoKey];
+      if (bucketMemo.has(memoKey)) return bucketMemo.get(memoKey);
       const rows = state.sales || [];
       const now = new Date();
       const start = new Date();
       start.setUTCDate(start.getUTCDate() - (days - 1));
 
       const dataset = [];
-      if (days > 90) {
-        const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
-        const limit = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-        while (cursor <= limit) {
-          const monthKey = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}`;
-          const monthRows = rows.filter((r) => {
-            const ds = toDateString(r.date);
-            return ds >= start.toISOString().slice(0, 10) && ds.slice(0, 7) === monthKey;
-          });
+      if (days >= 90) {
+        const months = [];
+        const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const minMonth = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+        let cursor = currentMonthStart;
+        while (months.length < 12 && cursor >= minMonth) {
+          months.push(new Date(cursor));
+          cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() - 1, 1));
+        }
+        months.reverse();
+        months.forEach((monthStart) => {
+          const monthKey = `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, '0')}`;
+          const monthRows = rows.filter((r) => toDateString(r.date).slice(0, 7) === monthKey);
           dataset.push({
             key: monthKey,
-            label: `${monthFormatter.format(cursor)} ${String(cursor.getUTCFullYear()).slice(2)}`,
+            label: `${monthFormatter.format(monthStart)} ${String(monthStart.getUTCFullYear()).slice(2)}`,
             revenue: monthRows.reduce((a, r) => a + Number(r.vk || 0), 0),
             profit: monthRows.reduce((a, r) => a + Number(r.profit || 0), 0),
             cost: monthRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
           });
-          cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-        }
-      } else if (days === 90) {
-        const blockSize = 7;
-        const totalBlocks = Math.ceil(days / blockSize);
-        for (let block = 0; block < totalBlocks; block++) {
-          const blockStart = new Date();
-          blockStart.setUTCDate(blockStart.getUTCDate() - (days - 1 - block * blockSize));
-          const blockEnd = new Date(blockStart);
-          blockEnd.setUTCDate(blockEnd.getUTCDate() + blockSize - 1);
-          const startKey = blockStart.toISOString().slice(0, 10);
-          const endKey = blockEnd.toISOString().slice(0, 10);
-          const blockRows = rows.filter((r) => {
-            const ds = toDateString(r.date);
-            return ds >= startKey && ds <= endKey;
-          });
-          dataset.push({
-            key: `${startKey}_${endKey}`,
-            label: `${startKey.slice(5)}–${endKey.slice(5)}`,
-            revenue: blockRows.reduce((a, r) => a + Number(r.vk || 0), 0),
-            profit: blockRows.reduce((a, r) => a + Number(r.profit || 0), 0),
-            cost: blockRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
-          });
-        }
+        });
       } else if (days === 30) {
         const blockSize = 7;
-        for (let offset = 0; offset < days; offset += blockSize) {
-          const blockStart = new Date();
-          blockStart.setUTCDate(blockStart.getUTCDate() - (days - 1 - offset));
-          const blockEnd = new Date(blockStart);
-          blockEnd.setUTCDate(blockEnd.getUTCDate() + blockSize - 1);
-          const startKey = blockStart.toISOString().slice(0, 10);
-          const endKey = blockEnd.toISOString().slice(0, 10);
+        const blocks = 4;
+        const definitions = [];
+        let blockEnd = new Date(now);
+        for (let i = 0; i < blocks; i++) {
+          const blockStart = new Date(blockEnd);
+          blockStart.setUTCDate(blockStart.getUTCDate() - (blockSize - 1));
+          definitions.unshift({ start: new Date(blockStart), end: new Date(blockEnd) });
+          blockEnd = new Date(blockStart);
+          blockEnd.setUTCDate(blockEnd.getUTCDate() - 1);
+        }
+        if (definitions.length && definitions[0].start < start) definitions[0].start = new Date(start);
+        definitions.forEach((block) => {
+          const startKey = block.start.toISOString().slice(0, 10);
+          const endKey = block.end.toISOString().slice(0, 10);
           const blockRows = rows.filter((r) => {
             const ds = toDateString(r.date);
             return ds >= startKey && ds <= endKey;
@@ -175,7 +165,7 @@
             profit: blockRows.reduce((a, r) => a + Number(r.profit || 0), 0),
             cost: blockRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
           });
-        }
+        });
       } else {
         for (let i = 0; i < days; i++) {
           const d = new Date();
@@ -183,7 +173,7 @@
           const key = d.toISOString().slice(0, 10);
           const dayRows = rows.filter((r) => toDateString(r.date) === key);
           const baseLabel = key.slice(5);
-          const showLabel = days <= 7 || days > 7 && days < 30 || (days === 30 && (i % 7 === 0 || i === days - 1));
+          const showLabel = days <= 7 || (days > 7 && days < 30);
           dataset.push({
             key,
             label: showLabel ? baseLabel : '',
@@ -193,7 +183,9 @@
           });
         }
       }
-      bucketMemo[memoKey] = dataset;
+
+      if (!dataset.length) dataset.push({ key: 'n/a', label: '', revenue: 0, profit: 0, cost: 0 });
+      bucketMemo.set(memoKey, dataset);
       return dataset;
     }
 
@@ -244,6 +236,7 @@
     }
 
     function renderInventoryList() {
+      if (activeSection !== 'inventorySection' || !inventoryListDirty) return;
       const listEl = $('inventoryList');
       const totalEl = $('inventoryTotal');
       if (!listEl || !totalEl) return;
@@ -270,6 +263,7 @@
           </div>
         </div>`;
       }).join('');
+      inventoryListDirty = false;
     }
 
     function priorityBadge(priority) {
@@ -305,7 +299,7 @@
       const raw = await api('/sales');
       state.sales = raw.rows || [];
       salesSignature = `${state.sales.length}_${state.sales[0]?.orderId || ''}`;
-      bucketMemo = {};
+      bucketMemo = new Map();
       computeSalesStats();
     }
     async function loadInventory() {
@@ -324,7 +318,8 @@
         date: r[dateIdx],
         listPrice: Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0
       }));
-      renderInventoryList();
+      inventoryListDirty = true;
+      if (activeSection === 'inventorySection') renderInventoryList();
     }
     async function loadSettings() {
       const raw = await api('/settings');
@@ -393,10 +388,18 @@
         $('syncState').textContent = 'Live-Daten';
       } catch (e) {
         $('syncState').textContent = 'Fehler beim Laden';
-        console.error(e);
       }
     }
-    [...document.querySelectorAll('.tabBtn')].forEach(btn => btn.onclick = () => { document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.section').forEach(s => s.classList.remove('active')); btn.classList.add('active'); $(btn.dataset.tab).classList.add('active'); });
+    [...document.querySelectorAll('.tabBtn')].forEach(btn => btn.onclick = () => {
+      document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      $(btn.dataset.tab).classList.add('active');
+      activeSection = btn.dataset.tab;
+      if (activeSection === 'inventorySection') {
+        renderInventoryList();
+      }
+    });
     [...document.querySelectorAll('.chip')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
     $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc; $('calcImage').onchange = handleCalcImage; boot();
   </script>

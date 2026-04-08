@@ -14,7 +14,7 @@
     .progressGoal{height:6px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin-top:8px}.progressGoal>div{height:100%;background:linear-gradient(90deg,#34d399,#0ea5e9);border-radius:999px}
     .goalItem{padding:12px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)} .goalHead{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}
     .chartWrap{height:290px;margin-top:10px;display:grid;grid-template-columns:44px 1fr;gap:10px}.yAxis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-size:10px;color:var(--muted);padding:8px 0}.plot{position:relative;height:100%;border-left:1px solid rgba(255,255,255,0.12);border-bottom:1px solid rgba(255,255,255,0.12);padding:8px 0 24px}.gridLine{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,0.06)}
-    .bars{position:absolute;left:0;right:0;bottom:24px;top:8px;display:flex;gap:8px;align-items:flex-end}.barGroup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.barStack{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}.bar{width:9px;border-radius:6px 6px 3px 3px;min-height:4px}.barRev{background:#60a5fa}.barProfit{background:#22c55e}.barCost{background:#ef4444}.xLabel{font-size:10px;color:var(--muted);margin-top:6px}
+    .bars{position:absolute;left:0;right:0;bottom:24px;top:8px;display:flex;gap:8px;align-items:flex-end;overflow:hidden}.barGroup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.barStack{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}.bar{width:9px;border-radius:6px 6px 3px 3px;min-height:4px}.barRev{background:#60a5fa}.barProfit{background:#22c55e}.barCost{background:#ef4444}.xLabel{font-size:10px;color:var(--muted);margin-top:6px}
     .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}.chipRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);font-size:12px;color:var(--muted)}.chip.active{background:rgba(96,165,250,0.18);color:#dbeafe;border-color:rgba(96,165,250,0.4)}
     .seoBtn{margin-top:10px;width:100%;padding:10px;border:none;border-radius:14px;font-weight:700;color:white;background:linear-gradient(120deg,#2563eb,#7c3aed)}.seoBtn:disabled{opacity:0.7}
     .seoSuggestion{margin-top:8px;border-radius:14px;border:1px solid var(--border);padding:10px;background:rgba(255,255,255,0.03);font-size:12px;color:var(--muted);white-space:pre-line}
@@ -42,6 +42,11 @@
     <section class="section" id="salesSection"><div class="glass card" style="margin-bottom:12px"><div class="title" style="font-size:16px">Verkäufe</div><div class="subtitle">Nur valide Order-IDs</div></div><div class="list" id="salesList"></div></section>
     <section class="section" id="calcSection"><div class="glass card stack"><div class="title" style="font-size:16px">Smart Kalkulation</div><div class="row"><div><label>Titel</label><input id="calcTitle" type="text" placeholder="Produktname" /></div><div><label>Bildanalyse</label><input id="calcImage" type="file" accept="image/*" /></div></div><div class="subtitle" id="visionStatus"></div><div class="row"><div><label>VK</label><input id="calcVk" type="number" value="25" /></div><div><label>EK</label><input id="calcEk" type="number" value="8" /></div></div><div class="row"><div><label>Versand</label><input id="calcShipping" type="number" value="0" /></div><div><label>Sonstige Kosten</label><input id="calcOther" type="number" value="0" /></div></div><button id="calcBtn">Berechnen</button><div class="calcResult" id="calcResult">Noch keine Berechnung.</div></div></section>
     <section class="section" id="goalsSection"><div class="glass card stack"><div class="title" style="font-size:16px">Ziele</div><div class="subtitle">Fortschritt je Ziel</div><div id="goalsSummary" class="stack"></div></div></section>
+    <section class="section" id="healthSection">
+      <div class="glass card stack"><div class="title" style="font-size:16px">Inventory Health</div><div class="subtitle">Langsam drehende Artikel</div><div class="list" id="healthList"></div></div>
+      <div class="glass card stack" style="margin-top:12px"><div class="title" style="font-size:16px">Restock Radar</div><div class="list" id="restockList"></div></div>
+      <div class="glass card stack" style="margin-top:12px"><div class="subtitle">Steuerrücklage (ca. 19 %)</div><div class="kpiVal" id="taxEstimate">-</div></div>
+    </section>
     <section class="section" id="auditSection"><div class="glass card stack"><div class="title" style="font-size:16px">Listings-Audit</div><div class="subtitle" id="auditSyncState">Bereit</div><button class="btnGreen" id="syncAuditBtn">Audit synchronisieren</button></div><div class="list" id="auditList"></div></section>
   </div>
 
@@ -52,10 +57,17 @@
     const state = { metrics:null, sales:null, settings:null, inventory:null, audit:[], auditInsights:{}, yearGoal:25000, dayGoal:2000, range:7 };
     let bucketMemo = {};
     let salesSignature = '';
+    let salesStats = {};
     async function api(url, opts) { const res = await fetch(url, opts); if (!res.ok) throw new Error(await res.text()); return res.json(); }
     const euro = (v) => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(v||0));
 
     function toDateString(input) { if (!input) return ''; const d = new Date(input); if (!isNaN(d.getTime())) return d.toISOString().slice(0,10); const s = String(input).trim(); const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if (m) return new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00Z`).toISOString().slice(0,10); return s.slice(0,10); }
+
+    function daysBetween(dateInput) {
+      const d = new Date(toDateString(dateInput));
+      if (Number.isNaN(d.getTime())) return 0;
+      return Math.floor((Date.now() - d.getTime()) / 86400000);
+    }
     function setLoading() { $('kpis').innerHTML = Array.from({length:4}).map(()=>`<div class="glass card skeleton" style="height:96px"></div>`).join(''); $('salesList').innerHTML = Array.from({length:5}).map(()=>`<div class="glass sale skeleton" style="height:100px"></div>`).join(''); $('chartWrap').innerHTML = `<div class="skeleton" style="height:220px;border-radius:16px"></div>`; $('auditList').innerHTML = Array.from({length:4}).map(()=>`<div class="glass sale skeleton" style="height:92px"></div>`).join(''); }
     function getTodayListingValue() { const rows = state.inventory || []; const today = new Date().toISOString().slice(0,10); return rows.filter(r => toDateString(r.date) === today).reduce((sum, r) => sum + Number(r.listPrice || 0), 0); }
 
@@ -63,6 +75,21 @@
       if (!listing?.sku) return null;
       const match = (state.sales || []).find((row) => row.sku && row.sku.trim() === listing.sku.trim());
       return match ? Number(row.vk || 0) : null;
+    }
+
+    function computeSalesStats() {
+      const stats = {};
+      const now = new Date();
+      for (const row of state.sales || []) {
+        const sku = row.sku?.trim();
+        if (!sku) continue;
+        if (!stats[sku]) stats[sku] = { lastSale: null, last30Count: 0 };
+        const dateIso = toDateString(row.date);
+        if (!stats[sku].lastSale || dateIso > stats[sku].lastSale) stats[sku].lastSale = dateIso;
+        const daysDiff = (now - new Date(dateIso)) / 86400000;
+        if (daysDiff <= 30) stats[sku].last30Count += 1;
+      }
+      salesStats = stats;
     }
 
     const monthFormatter = new Intl.DateTimeFormat('de-DE', { month: 'short' });
@@ -174,6 +201,7 @@
         goalTemplate('Tagesziel Einstellwert', todayValue, state.dayGoal, 'linear-gradient(90deg,#22c55e,#16a34a)'),
         goalTemplate('Gewinnziel Jahr', profitProgress, profitTarget, 'linear-gradient(90deg,#f97316,#ea580c)')
       ].join('');
+      renderOpsInsights();
     }
 
     function renderSales() {
@@ -227,12 +255,41 @@
       attachOptimizeHandlers();
     }
 
+    function renderOpsInsights() {
+      const healthList = $('healthList');
+      const restockList = $('restockList');
+      const inventoryRows = state.inventory || [];
+      const slow = inventoryRows.map((item) => {
+        const days = daysBetween(item.date);
+        const lastSale = salesStats[item.sku]?.lastSale;
+        const lastSaleDays = lastSale ? daysBetween(lastSale) : null;
+        return { ...item, days, lastSaleDays };
+      }).filter((item) => item.quantity > 0 && item.days >= 30 && (!item.lastSaleDays || item.lastSaleDays >= 30)).sort((a, b) => b.days - a.days).slice(0, 5);
+      healthList.innerHTML = slow.length ? slow.map((item) => `<div class="glass sale"><div class="saleTitle">${item.sku || ''}</div><div class="taskMeta">${item.title || ''}</div><div class="subtitle">${item.days} Tage im Lager · Bestand ${item.quantity}</div></div>`).join('') : '<div class="subtitle">Aktuell keine Ladenhüter.</div>';
+      const restock = inventoryRows.filter((item) => item.quantity <= 2 && salesStats[item.sku]?.last30Count >= 2).slice(0, 5);
+      restockList.innerHTML = restock.length ? restock.map((item) => `<div class="glass sale"><div class="saleTitle">${item.sku || ''}</div><div class="taskMeta">${item.title || ''}</div><div class="subtitle">Menge ${item.quantity} · ${salesStats[item.sku].last30Count} Verkäufe/30T</div></div>`).join('') : '<div class="subtitle">Keine dringenden Nachkäufe.</div>';
+      const taxAmount = Math.max(0, (state.metrics?.totalProfit || 0) * 0.19);
+      $('taxEstimate').textContent = euro(taxAmount);
+    }
+
     function generateSeoSuggestion(item, priceSuggestion) {
-      const baseTitle = (item.title || '').trim() || 'Top-Angebot';
-      const optimizedTitle = `${baseTitle} | Sofort lieferbar`;
+      const rawTitle = (item.title || '').trim() || 'Top-Angebot';
+      const tokens = rawTitle.split(/\s+/).filter(Boolean);
+      const keywords = tokens.slice(0, 4).map((t) => t.replace(/[^\wäöüÄÖÜß-]/g, ''));
+      const prefix = keywords.join(' ');
+      const base = prefix || rawTitle;
+      const skuHint = item.sku ? item.sku.replace(/_/g, ' ').split(' ')[0] : 'Top-Zustand';
+      let optimizedTitle = `${base} | ${skuHint} | Versand gratis`;
+      if (optimizedTitle.length > 78) optimizedTitle = optimizedTitle.slice(0, 78) + '…';
       const currency = item.price?.currency || 'EUR';
       const recommendedPrice = priceSuggestion?.price ?? item.price?.value ?? 0;
-      const description = `${baseTitle} jetzt sichern – Zustand, Zubehör und Besonderheiten klar benennen. Füge 2-3 Stichpunkte zu Nutzen & Versand hinzu.`;
+      const descLines = [
+        `⭐ ${prefix || rawTitle} sofort verfügbar` ,
+        '🚚 Versand innerhalb von 24h',
+        '🔧 Geprüfter Zustand & Zubehör inklusive',
+        '💡 Keywords vorne platzieren: ' + keywords.join(', ')
+      ];
+      const description = descLines.join('\n');
       const preview = `Titel: ${optimizedTitle}
 Preisempfehlung: ${recommendedPrice.toFixed(2)} ${currency}
 Beschreibung:
@@ -298,6 +355,8 @@ ${description}`;
           renderAudit();
         } catch (error) {
           console.error('Preis-Insight Fehler', error);
+          state.auditInsights[item.listingId] = { suggestedPrice: item.price?.value || 0, reason: 'Fallback – Basispreis aus Sheet' };
+          renderAudit();
         }
       }
     }
@@ -324,8 +383,25 @@ ${description}`;
       state.sales = raw.rows || [];
       salesSignature = `${state.sales.length}_${state.sales[0]?.orderId || ''}`;
       bucketMemo = {};
+      computeSalesStats();
     }
-    async function loadInventory() { const raw = await api('/inventory'); const idx = Object.fromEntries((raw.header || []).map((h, i) => [String(h).trim(), i])); const rows = raw.rows || []; const dateIdx = idx['Datum'] ?? idx['Date'] ?? 5; const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6; state.inventory = rows.map(r => ({ date:r[dateIdx], listPrice:Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0 })); }
+    async function loadInventory() {
+      const raw = await api('/inventory');
+      const idx = Object.fromEntries((raw.header || []).map((h, i) => [String(h).trim(), i]));
+      const rows = raw.rows || [];
+      const skuIdx = idx['SKU'] ?? 0;
+      const titleIdx = idx['Titel'] ?? 1;
+      const qtyIdx = idx['Menge Aktuell'] ?? idx['Menge'] ?? 3;
+      const dateIdx = idx['Einstell-Datum'] ?? idx['Datum'] ?? idx['Date'] ?? 5;
+      const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6;
+      state.inventory = rows.map((r) => ({
+        sku: r[skuIdx],
+        title: r[titleIdx],
+        quantity: Number(r[qtyIdx] ?? 0) || 0,
+        date: r[dateIdx],
+        listPrice: Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0
+      }));
+    }
     async function loadSettings() {
       const raw = await api('/settings');
       state.settings = raw.settings || {};
@@ -374,11 +450,12 @@ ${description}`;
       try {
         const payload = { filename: file.name, size: file.size };
         const result = await api('/vision/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        $('visionStatus').textContent = `Erkannt: ${result.productName} ${result.model} (${result.condition})`;
+        $('visionStatus').textContent = `Erkannt: ${result.productName} ${result.model} (${result.condition}), EK ${euro(result.estimatedCost)} / VK ${euro(result.marketPrice)}`;
         if (result.productName) {
           $('calcTitle').value = `${result.productName} ${result.model}`.trim();
         }
         if (result.estimatedCost) $('calcEk').value = result.estimatedCost;
+        if (result.marketPrice) $('calcVk').value = result.marketPrice;
       } catch (error) {
         $('visionStatus').textContent = 'Analyse nicht möglich';
       }

@@ -230,7 +230,8 @@ app.post("/vision/analyze", async (req, res) => {
     const model = tokens.slice(2).join(" ") || "Modell X";
     const condition = /neu/i.test(base) ? "Neu" : "Gebraucht";
     const estimatedCost = Math.max(5, Math.round((body.size || 400000) / 80000));
-    res.json({ ok: true, productName, model, condition, estimatedCost });
+    const marketPrice = Math.round(estimatedCost * 2.2);
+    res.json({ ok: true, productName, model, condition, estimatedCost, marketPrice });
   } catch (e) {
     res.status(400).json({ ok: false, error: String(e.message || e) });
   }

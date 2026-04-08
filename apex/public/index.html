@@ -103,7 +103,7 @@
       start.setUTCDate(start.getUTCDate() - (days - 1));
 
       const dataset = [];
-      if (days >= 90) {
+      if (days > 90) {
         const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
         const limit = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
         while (cursor <= limit) {
@@ -120,6 +120,28 @@
             cost: monthRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
           });
           cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        }
+      } else if (days === 90) {
+        const blockSize = 7;
+        const totalBlocks = Math.ceil(days / blockSize);
+        for (let block = 0; block < totalBlocks; block++) {
+          const blockStart = new Date();
+          blockStart.setUTCDate(blockStart.getUTCDate() - (days - 1 - block * blockSize));
+          const blockEnd = new Date(blockStart);
+          blockEnd.setUTCDate(blockEnd.getUTCDate() + blockSize - 1);
+          const startKey = blockStart.toISOString().slice(0, 10);
+          const endKey = blockEnd.toISOString().slice(0, 10);
+          const blockRows = rows.filter((r) => {
+            const ds = toDateString(r.date);
+            return ds >= startKey && ds <= endKey;
+          });
+          dataset.push({
+            key: `${startKey}_${endKey}`,
+            label: `${startKey.slice(5)}–${endKey.slice(5)}`,
+            revenue: blockRows.reduce((a, r) => a + Number(r.vk || 0), 0),
+            profit: blockRows.reduce((a, r) => a + Number(r.profit || 0), 0),
+            cost: blockRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
+          });
         }
       } else if (days === 30) {
         const blockSize = 7;

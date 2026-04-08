@@ -40,6 +40,50 @@ const DEFAULT_GKV_LIMIT = 578;
 const DEFAULT_PROFIT_GOAL = 15000;
 const DEFAULT_REVENUE_GOAL = 15000;
 
+const MARKET_KEYWORD_STOPWORDS = new Set([
+  "neu",
+  "neuwertig",
+  "gebraucht",
+  "top",
+  "sehr",
+  "super",
+  "mega",
+  "mini",
+  "maxi",
+  "klein",
+  "groß",
+  "gross",
+  "toll",
+  "beste",
+  "gute",
+  "guter",
+  "gut",
+  "versand",
+  "gratis",
+  "inkl",
+  "inklusive",
+  "komplett",
+  "set",
+  "bundle",
+  "original",
+  "schnell",
+  "schnelle",
+  "neue",
+  "brandneu"
+]);
+
+function buildKeywordSearchTerm(text, limit = 3) {
+  if (!text) return "";
+  const words = String(text)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean)
+    .filter((word) => !MARKET_KEYWORD_STOPWORDS.has(word));
+  return words.slice(0, limit).join(" ");
+}
+
 async function getSettingsMap() {
   const r = await callSheets({ action: "getSettings" });
   if (!r.ok) return {};
@@ -342,6 +386,12 @@ app.post("/audit/insight", async (req, res) => {
         if (!completed.length && cleanedTitle.includes(" ")) {
           const fallbackTerm = cleanedTitle.split(" ").slice(0, 2).join(" ");
           completed = await findCompletedItems({ keywords: fallbackTerm, limit: 10 });
+        }
+        if (!completed.length) {
+          const keywordFallback = buildKeywordSearchTerm(cleanedTitle, 3);
+          if (keywordFallback) {
+            completed = await findCompletedItems({ keywords: keywordFallback, limit: 10 });
+          }
         }
       } catch (err) {
         console.warn("findCompletedItems failed", err.message || err);

@@ -4,6 +4,8 @@ import fetch from "node-fetch";
 import { z } from "zod";
 import { buildListingAudit } from "./lib/audit.js";
 import { reviseEbayItem, findCompletedItems } from "./lib/ebay.js";
+import { normalizeSettingValue, normalizeDateString, cleanKeywords } from "./lib/utils.js";
+import { buildWeeklyReport } from "./lib/report.js";
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -38,37 +40,6 @@ const DEFAULT_GKV_LIMIT = 578;
 const DEFAULT_PROFIT_GOAL = 15000;
 const DEFAULT_REVENUE_GOAL = 15000;
 
-function normalizeSettingValue(raw, type = "string") {
-  if (type === "number") {
-    const n = Number(String(raw).replace(",", "."));
-    return Number.isFinite(n) ? n : null;
-  }
-  if (type === "boolean") {
-    const s = String(raw).trim().toLowerCase();
-    return !(s === "false" || s === "0" || s === "no" || s === "off" || s === "");
-  }
-  return raw;
-}
-
-function normalizeDateString(input) {
-  if (!input) return "";
-  const d = new Date(input);
-  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-  const s = String(input).trim();
-  const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (m) return new Date(`${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}T00:00:00Z`).toISOString().slice(0, 10);
-  return s.slice(0, 10);
-}
-
-function cleanKeywords(input = "") {
-  return String(input)
-    .replace(/[_-]/g, " ")
-    .replace(/\b(?:EK|VK)[^\s]*\b/gi, "")
-    .replace(/\b\d{2}_\d{2}_\d{2}_[^\s]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 async function getSettingsMap() {
   const r = await callSheets({ action: "getSettings" });
   if (!r.ok) return {};
@@ -80,18 +51,41 @@ async function getSettingsMap() {
 async function getMonthlyFixedCosts() {
   const r = await callSheets({ action: "getMonthlyOverview" }).catch(() => null);
   if (!r || !r.ok) return 0;
-  const header = r.header || [];
-  const rows = r.rows || [];
+  let header = (r.header || []).map((h) => String(h || "").trim().toLowerCase());
+  let rows = r.rows || [];
   if (!rows.length) return 0;
 
-  const idx = Object.fromEntries(header.map((h, i) => [String(h).trim().toLowerCase(), i]));
-  const col = idx["fixkosten"];
-  if (col === undefined) return 0;
+  const findHeaderInRows = () => {
+    const headerRowIndex = rows.findIndex((row) => row.some((cell) => typeof cell === "string" && cell.toLowerCase().includes("fixkosten")));
+    if (headerRowIndex === -1) return -1;
+    header = rows[headerRowIndex].map((cell) => String(cell || "").trim().toLowerCase());
+    rows = rows.slice(headerRowIndex + 1);
+    return headerRowIndex;
+  };
+
+  let fixColumns = header
+    .map((value, index) => ({ value, index }))
+    .filter((entry) => entry.value.includes("fixkosten"))
+    .map((entry) => entry.index);
+
+  if (!fixColumns.length) {
+    const idx = findHeaderInRows();
+    if (idx !== -1) {
+      fixColumns = header
+        .map((value, index) => ({ value, index }))
+        .filter((entry) => entry.value.includes("fixkosten"))
+        .map((entry) => entry.index);
+    }
+  }
+
+  if (!fixColumns.length) return 0;
 
   for (let i = rows.length - 1; i >= 0; i--) {
-    const raw = String(rows[i][col] ?? "").replace(/€/g, "").replace(/\s/g, "").replace(",", ".");
-    const n = Number(raw);
-    if (Number.isFinite(n)) return Math.max(n, 0);
+    for (const col of fixColumns) {
+      const raw = String(rows[i][col] ?? "").replace(/€/g, "").replace(/\s/g, "").replace(",", ".");
+      const n = Number(raw);
+      if (Number.isFinite(n) && n !== 0) return Math.max(n, 0);
+    }
   }
   return 0;
 }
@@ -113,6 +107,31 @@ async function getFeeForCategory(category) {
   const pct = Number(String(row[iPct] ?? "").replace(",", "."));
   const fix = Number(String(row[iFix] ?? "").replace(",", "."));
   return { feePct: Number.isFinite(pct) ? pct / 100 : defaultFeePct, feeFixed: Number.isFinite(fix) ? fix : defaultFeeFixed, source: "fees_sheet" };
+}
+
+function normalizeSalesRows(data) {
+  const idx = Object.fromEntries((data.header || []).map((h, i) => [String(h).trim(), i]));
+  const iDate = idx["Datum"] ?? 0;
+  const iTitle = idx["Titel"] ?? idx["Title"] ?? 1;
+  const iProfit = idx["Gewinn"] ?? 8;
+  const iVk = idx["VK"] ?? idx["Umsatz"] ?? idx["Verkaufspreis"] ?? 7;
+  const iOrder = idx["Order-ID"] ?? idx["OrderID"] ?? idx["ID"] ?? 9;
+  const iShipping = idx["Versand"] ?? 5;
+  const iFees = idx["Gebühr"] ?? 6;
+  const iSku = idx["SKU"] ?? idx["Sku"] ?? idx["Artikelnummer"] ?? idx["Artikel-Nr"] ?? 2;
+  return (data.rows || [])
+    .filter((r) => String(r[iOrder] ?? "").trim() !== "")
+    .map((r) => ({
+      date: r[iDate],
+      title: r[iTitle],
+      profit: Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0,
+      vk: Number(String(r[iVk] ?? "0").replace(",", ".")) || 0,
+      shippingCost: Number(String(r[iShipping] ?? "0").replace(",", ".")) || 0,
+      fees: Number(String(r[iFees] ?? "0").replace(",", ".")) || 0,
+      orderId: String(r[iOrder] ?? "").trim(),
+      sku: String(r[iSku] ?? "").trim()
+    }))
+    .sort((a, b) => normalizeDateString(b.date).localeCompare(normalizeDateString(a.date)));
 }
 
 app.get("/health", (req, res) => res.json({ ok: true }));
@@ -185,12 +204,25 @@ app.get("/sales", async (req, res) => {
   try {
     const data = await callSheets({ action: "getSales" });
     if (!data.ok) return res.status(500).json(data);
-    const idx = Object.fromEntries((data.header || []).map((h, i) => [String(h).trim(), i]));
-    const iDate = idx["Datum"] ?? 0, iTitle = idx["Titel"] ?? idx["Title"] ?? 1, iProfit = idx["Gewinn"] ?? 8, iVk = idx["VK"] ?? 7, iOrder = idx["Order-ID"] ?? idx["OrderID"] ?? idx["ID"] ?? 9, iShipping = idx["Versand"] ?? 5, iFees = idx["Gebühr"] ?? 6;
-    const iSku = idx["SKU"] ?? idx["Sku"] ?? idx["Artikelnummer"] ?? idx["Artikel-Nr"] ?? 2;
-    const rows = (data.rows || []).filter((r) => String(r[iOrder] ?? "").trim() !== "").map((r) => ({ date: r[iDate], title: r[iTitle], profit: Number(String(r[iProfit] ?? "0").replace(",", ".")) || 0, vk: Number(String(r[iVk] ?? "0").replace(",", ".")) || 0, shippingCost: Number(String(r[iShipping] ?? "0").replace(",", ".")) || 0, fees: Number(String(r[iFees] ?? "0").replace(",", ".")) || 0, orderId: String(r[iOrder] ?? "").trim(), sku: String(r[iSku] ?? "").trim() })).sort((a, b) => normalizeDateString(b.date).localeCompare(normalizeDateString(a.date)));
+    const rows = normalizeSalesRows(data);
     res.json({ ok: true, rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); }
+});
+
+app.get("/reports/weekly", async (req, res) => {
+  try {
+    const data = await callSheets({ action: "getSales" });
+    if (!data.ok) return res.status(500).json(data);
+    const rows = normalizeSalesRows(data);
+    const days = Number(req.query.days) || 7;
+    const tz = typeof req.query.tz === "string" && req.query.tz.trim() ? req.query.tz : "UTC";
+    const targetDate = req.query.date ? new Date(req.query.date) : new Date();
+    const today = Number.isNaN(targetDate.getTime()) ? new Date() : targetDate;
+    const report = buildWeeklyReport({ salesRows: rows, lookbackDays: days, timezone: tz, today });
+    res.json({ ok: true, ...report });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
 });
 
 app.get("/inventory", async (req, res) => { try { res.json(await callSheets({ action: "getInventory" })); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });

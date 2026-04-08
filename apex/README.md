@@ -34,6 +34,8 @@ Endpoints:
 - `GET /health`
 - `GET /sheets/ping`
 - `GET /metrics`
+- `GET /sales`
+- `GET /reports/weekly?days=7&tz=Europe/Berlin`
 - `GET /settings`
 - `POST /settings` body: `{ key, value, type?, note? }`
 - `GET /todos`

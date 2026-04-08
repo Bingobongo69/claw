@@ -182,21 +182,6 @@ export async function fetchSellerListings({ entriesPerPage = 100, maxPages = 10 
   return items;
 }
 
-export async function reviseEbayItem({ itemId, title, description, price }) {
-  if (!itemId) throw new Error("ItemID required for revise");
-  const fields = ["<ItemID>" + xmlEscape(itemId) + "</ItemID>"];
-  if (title) fields.push(`<Title>${xmlEscape(title)}</Title>`);
-  if (description) fields.push(`<Description>${xmlEscape(description)}</Description>`);
-  if (price) fields.push(`<StartPrice currencyID="EUR">${Number(price).toFixed(2)}</StartPrice>`);
-  const xml = `<?xml version="1.0" encoding="utf-8"?>
-    <ReviseFixedPriceItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-      <Item>
-        ${fields.join("\n")}
-      </Item>
-    </ReviseFixedPriceItemRequest>`;
-  await callTradingApi("ReviseFixedPriceItem", xml);
-}
-
 export async function findCompletedItems({ keywords, limit = 15 }) {
   if (!keywords) return [];
   const params = new URLSearchParams({

@@ -2,9 +2,7 @@ import "dotenv/config";
 import express from "express";
 import fetch from "node-fetch";
 import { z } from "zod";
-import { buildListingAudit } from "./lib/audit.js";
-import { reviseEbayItem, findCompletedItems } from "./lib/ebay.js";
-import { normalizeSettingValue, normalizeDateString, cleanKeywords } from "./lib/utils.js";
+import { normalizeSettingValue, normalizeDateString } from "./lib/utils.js";
 import { buildWeeklyReport } from "./lib/report.js";
 
 const app = express();
@@ -39,50 +37,6 @@ const DEFAULT_FEE_FIXED = 0.35;
 const DEFAULT_GKV_LIMIT = 578;
 const DEFAULT_PROFIT_GOAL = 15000;
 const DEFAULT_REVENUE_GOAL = 15000;
-
-const MARKET_KEYWORD_STOPWORDS = new Set([
-  "neu",
-  "neuwertig",
-  "gebraucht",
-  "top",
-  "sehr",
-  "super",
-  "mega",
-  "mini",
-  "maxi",
-  "klein",
-  "groß",
-  "gross",
-  "toll",
-  "beste",
-  "gute",
-  "guter",
-  "gut",
-  "versand",
-  "gratis",
-  "inkl",
-  "inklusive",
-  "komplett",
-  "set",
-  "bundle",
-  "original",
-  "schnell",
-  "schnelle",
-  "neue",
-  "brandneu"
-]);
-
-function buildKeywordSearchTerm(text, limit = 3) {
-  if (!text) return "";
-  const words = String(text)
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .split(/\s+/)
-    .map((word) => word.trim())
-    .filter(Boolean)
-    .filter((word) => !MARKET_KEYWORD_STOPWORDS.has(word));
-  return words.slice(0, limit).join(" ");
-}
 
 async function getSettingsMap() {
   const r = await callSheets({ action: "getSettings" });
@@ -310,110 +264,6 @@ app.post("/vision/analyze", async (req, res) => {
     res.json({ ok: true, productName, model, condition, estimatedCost, marketPrice });
   } catch (e) {
     res.status(400).json({ ok: false, error: String(e.message || e) });
-  }
-});
-
-app.get("/audit/listings", async (req, res) => {
-  try {
-    const limit = Number(req.query.limit) || 50;
-    const listings = await buildListingAudit({ limit: Math.min(Math.max(limit, 1), 200) });
-    res.json({ ok: true, generatedAt: new Date().toISOString(), count: listings.length, listings });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e.message || e) });
-  }
-});
-
-app.post("/audit/sync", async (req, res) => {
-  try {
-    const limit = Number(req.body?.limit) || 200;
-    const listings = await buildListingAudit({ limit: Math.min(Math.max(limit, 1), 500) });
-    const rows = listings.map((item) => [
-      item.listingId,
-      item.sku || "",
-      item.title,
-      item.price?.value || 0,
-      item.price?.currency || "EUR",
-      item.quantity ?? 0,
-      item.availableQuantity ?? 0,
-      item.score ?? 0,
-      item.priority || "low",
-      item.issues.map((issue) => issue.code).join(", "),
-      JSON.stringify(item.issues),
-      item.url || "",
-      item.image || "",
-      new Date().toISOString()
-    ]);
-    await callSheets({ action: "writeAuditRows", rows });
-    res.json({ ok: true, count: rows.length });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e.message || e) });
-  }
-});
-
-app.post("/audit/revise", async (req, res) => {
-  try {
-    const schema = z.object({
-      listingId: z.string().min(1),
-      title: z.string().min(5),
-      description: z.string().min(10),
-      price: z.number().positive()
-    });
-    const body = schema.parse(req.body);
-    await reviseEbayItem({ itemId: body.listingId, title: body.title, description: body.description, price: body.price });
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e.message || e) });
-  }
-});
-
-app.post("/audit/insight", async (req, res) => {
-  try {
-    const schema = z.object({
-      listingId: z.string().min(1),
-      title: z.string().optional(),
-      sku: z.string().optional(),
-      historyPrice: z.number().positive().optional(),
-      currentPrice: z.number().positive().optional()
-    });
-    const body = schema.parse(req.body || {});
-    const cleanedTitle = cleanKeywords(body.title || "");
-    const cleanedSku = cleanKeywords(body.sku || "");
-    const searchTerm = (cleanedSku || cleanedTitle).slice(0, 80);
-    let completed = [];
-    if (searchTerm) {
-      try {
-        completed = await findCompletedItems({ keywords: searchTerm, limit: 15 });
-        if (!completed.length && cleanedTitle.includes(" ")) {
-          const fallbackTerm = cleanedTitle.split(" ").slice(0, 2).join(" ");
-          completed = await findCompletedItems({ keywords: fallbackTerm, limit: 10 });
-        }
-        if (!completed.length) {
-          const keywordFallback = buildKeywordSearchTerm(cleanedTitle, 3);
-          if (keywordFallback) {
-            completed = await findCompletedItems({ keywords: keywordFallback, limit: 10 });
-          }
-        }
-      } catch (err) {
-        console.warn("findCompletedItems failed", err.message || err);
-      }
-    }
-    const competitorCount = completed.length;
-    const avgPrice = competitorCount ? completed.reduce((sum, item) => sum + item.price, 0) / competitorCount : null;
-    const demandHigh = Boolean(body.historyPrice) || competitorCount >= 5;
-    let basePrice = body.historyPrice ?? avgPrice ?? body.currentPrice ?? 0;
-    let adjustment = 0;
-    if (competitorCount < 3 && demandHigh) adjustment = 0.05;
-    else if (competitorCount > 10) adjustment = -0.02;
-    const suggestedPrice = Number((basePrice * (1 + adjustment)).toFixed(2));
-    const reasonParts = [];
-    if (competitorCount) reasonParts.push(`Basis: ${competitorCount} verkaufte Angebote (⌀ ${avgPrice ? avgPrice.toFixed(2) : "-"} €)`);
-    if (body.historyPrice) reasonParts.push(`Letzter Verkauf: ${body.historyPrice.toFixed(2)} €`);
-    if (adjustment > 0) reasonParts.push("Score hoch → +5 % Aufschlag");
-    if (adjustment < 0) reasonParts.push("Viele Wettbewerber → -2 %");
-    const reason = reasonParts.join(". ") || "Keine Vergleichsdaten – Basispreis genutzt";
-    res.json({ ok: true, competitorCount, averagePrice: avgPrice, demandHigh, suggestedPrice, reason });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e.message || e) });
   }
 });
 

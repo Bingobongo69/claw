@@ -8,3 +8,57 @@ services:
     envVars:
       - key: APEX_SHEETS_WEBAPP_URL
         sync: false
+  - type: cron
+    name: apex-weekly-telegram
+    env: node
+    rootDir: .
+    buildCommand: npm install
+    startCommand: node automation/telegramReports.js --period weekly
+    schedule: "0 6 * * 1"
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: APEX_BASE_URL
+        value: https://apex-app-610g.onrender.com
+      - key: REPORT_TIMEZONE
+        value: Europe/Berlin
+      - key: REVENUE_TARGET
+        value: "25000"
+  - type: cron
+    name: apex-monthly-telegram
+    env: node
+    rootDir: .
+    buildCommand: npm install
+    startCommand: node automation/telegramReports.js --period monthly
+    schedule: "0 6 1 * *"
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: APEX_BASE_URL
+        value: https://apex-app-610g.onrender.com
+      - key: REPORT_TIMEZONE
+        value: Europe/Berlin
+      - key: REVENUE_TARGET
+        value: "25000"
+  - type: cron
+    name: apex-yearly-telegram
+    env: node
+    rootDir: .
+    buildCommand: npm install
+    startCommand: node automation/telegramReports.js --period yearly
+    schedule: "0 6 1 1 *"
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: APEX_BASE_URL
+        value: https://apex-app-610g.onrender.com
+      - key: REPORT_TIMEZONE
+        value: Europe/Berlin
+      - key: REVENUE_TARGET
+        value: "25000"

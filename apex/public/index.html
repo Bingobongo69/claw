@@ -19,14 +19,14 @@
     .progressGoal{height:6px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin-top:8px}.progressGoal>div{height:100%;background:linear-gradient(90deg,#34d399,#0ea5e9);border-radius:999px}
     .goalItem{padding:12px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)} .goalHead{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}
     .chartWrap{height:290px;margin-top:10px;display:grid;grid-template-columns:44px 1fr;gap:10px}.yAxis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-size:10px;color:var(--muted);padding:8px 0}.plot{position:relative;height:100%;border-left:1px solid rgba(255,255,255,0.12);border-bottom:1px solid rgba(255,255,255,0.12);padding:8px 0 24px}.gridLine{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,0.06)}
-    .bars{position:absolute;left:0;right:0;bottom:24px;top:8px;display:flex;gap:8px;align-items:flex-end;overflow:hidden}.barGroup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.barStack{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}.bar{width:9px;border-radius:6px 6px 3px 3px;min-height:4px}.barRev{background:#60a5fa}.barProfit{background:#22c55e}.barCost{background:#ef4444}.xLabel{font-size:10px;color:var(--muted);margin-top:6px}
+    .bars{position:absolute;left:0;right:0;bottom:24px;top:8px;display:flex;gap:8px;align-items:flex-end;overflow:hidden}.bars.tight{gap:4px}.barGroup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.barStack{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}.bar{width:9px;border-radius:6px 6px 3px 3px;min-height:4px}.bars.tight .bar{width:6px}.barRev{background:#60a5fa}.barProfit{background:#22c55e}.barCost{background:#ef4444}.xLabel{font-size:10px;color:var(--muted);margin-top:6px}
     .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}.chipRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);font-size:12px;color:var(--muted)}.chip.active{background:rgba(96,165,250,0.18);color:#dbeafe;border-color:rgba(96,165,250,0.4)}
     .seoBtn{margin-top:10px;width:100%;padding:10px;border:none;border-radius:14px;font-weight:700;color:white;background:linear-gradient(120deg,#2563eb,#7c3aed)}.seoBtn:disabled{opacity:0.7}
     .seoSuggestion{margin-top:8px;border-radius:14px;border:1px solid var(--border);padding:10px;background:rgba(255,255,255,0.03);font-size:12px;color:var(--muted);white-space:pre-line}
     .seoStatus{margin-top:6px;font-size:12px;color:var(--muted)}
     .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.saleTitle{font-size:13px;font-weight:600;color:var(--muted)} .saleRevenue{font-size:24px;font-weight:800;line-height:1}.saleProfit{font-size:13px;margin-top:6px}.saleMeta,.taskMeta,.costRow{font-size:12px;color:var(--muted)} .costRow{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}.profitPos{color:var(--green);font-weight:700}.profitNeg{color:var(--red);font-weight:700}
     label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input{width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)} button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155}.btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)} .calcResult{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
-    .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(520px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
+    .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(520px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
     .modalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:.2s;z-index:30}
     .modalBackdrop.show{opacity:1;pointer-events:auto}
     .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(0.95);width:min(420px,90vw);background:rgba(15,23,42,0.98);border:1px solid var(--border);border-radius:20px;padding:20px;box-shadow:var(--shadow);z-index:31;opacity:0;pointer-events:none;transition:.2s}
@@ -64,7 +64,6 @@
       </div>
       <div class="list" id="salesList"></div>
     </section>
-    <section class="section" id="calcSection"><div class="glass card stack"><div class="title" style="font-size:16px">Smart Kalkulation</div><div class="row"><div><label>Titel</label><input id="calcTitle" type="text" placeholder="Produktname" /></div><div><label>Bildanalyse</label><input id="calcImage" type="file" accept="image/*" /></div></div><div class="subtitle" id="visionStatus"></div><div class="row"><div><label>VK</label><input id="calcVk" type="number" value="25" /></div><div><label>EK</label><input id="calcEk" type="number" value="8" /></div></div><div class="row"><div><label>Versand</label><input id="calcShipping" type="number" value="0" /></div><div><label>Sonstige Kosten</label><input id="calcOther" type="number" value="0" /></div></div><button id="calcBtn">Berechnen</button><div class="calcResult" id="calcResult">Noch keine Berechnung.</div></div></section>
     <section class="section" id="goalsSection"><div class="glass card stack"><div class="title" style="font-size:16px">Ziele</div><div class="subtitle">Fortschritt je Ziel</div><div id="goalsSummary" class="stack"></div></div></section>
     <section class="section" id="healthSection">
       <div class="glass card stack"><div class="title" style="font-size:16px">Inventory Health</div><div class="subtitle">Langsam drehende Artikel</div><div class="list" id="healthList"></div></div>
@@ -92,7 +91,7 @@
     </section>
   </div>
 
-  <nav class="bottomTabs"><button class="tabBtn active" data-tab="dashboardSection">Übersicht</button><button class="tabBtn" data-tab="salesSection">Verkäufe</button><button class="tabBtn" data-tab="calcSection">Kalkulator</button><button class="tabBtn" data-tab="goalsSection">Ziele</button><button class="tabBtn" data-tab="inventorySection">Warenbestand</button></nav>
+  <nav class="bottomTabs"><button class="tabBtn active" data-tab="dashboardSection">Übersicht</button><button class="tabBtn" data-tab="salesSection">Verkäufe</button><button class="tabBtn" data-tab="goalsSection">Ziele</button><button class="tabBtn" data-tab="inventorySection">Warenbestand</button></nav>
 
   <div class="modalBackdrop" id="saleModalBackdrop"></div>
   <div class="modal" id="saleModal">
@@ -155,7 +154,14 @@
       return Math.floor((Date.now() - d.getTime()) / 86400000);
     }
     function setLoading() { $('kpis').innerHTML = Array.from({length:4}).map(()=>`<div class="glass card skeleton" style="height:96px"></div>`).join(''); $('salesList').innerHTML = Array.from({length:5}).map(()=>`<div class="glass sale skeleton" style="height:100px"></div>`).join(''); $('chartWrap').innerHTML = `<div class="skeleton" style="height:220px;border-radius:16px"></div>`; }
-    function getTodayListingValue() { const rows = state.inventory || []; const today = new Date().toISOString().slice(0,10); return rows.filter(r => toDateString(r.date) === today).reduce((sum, r) => sum + Number(r.listPrice || 0), 0); }
+    function getTodayListingValue() {
+      const rows = state.inventory || [];
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      return rows
+        .filter(r => toDateString(r.date) === today)
+        .reduce((sum, r) => sum + Number(r.listPrice || 0), 0);
+    }
 
     function findHistoryPrice(listing) {
       if (!listing?.sku) return null;
@@ -189,16 +195,31 @@
       start.setUTCDate(start.getUTCDate() - (days - 1));
 
       const dataset = [];
-      if (days >= 90) {
+      if (days >= 365) {
         const months = [];
-        const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-        const minMonth = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
-        let cursor = currentMonthStart;
-        while (months.length < 12 && cursor >= minMonth) {
-          months.push(new Date(cursor));
+        let cursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        for (let i = 0; i < 12; i++) {
+          months.unshift(new Date(cursor));
           cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() - 1, 1));
         }
-        months.reverse();
+        months.forEach((monthStart) => {
+          const monthKey = `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, '0')}`;
+          const monthRows = rows.filter((r) => toDateString(r.date).slice(0, 7) === monthKey);
+          dataset.push({
+            key: monthKey,
+            label: `${monthFormatter.format(monthStart)} ${String(monthStart.getUTCFullYear()).slice(2)}`,
+            revenue: monthRows.reduce((a, r) => a + Number(r.vk || 0), 0),
+            profit: monthRows.reduce((a, r) => a + Number(r.profit || 0), 0),
+            cost: monthRows.reduce((a, r) => a + Number(r.shippingCost || 0) + Number(r.fees || 0), 0)
+          });
+        });
+      } else if (days >= 90) {
+        const months = [];
+        let cursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        for (let i = 0; i < 3; i++) {
+          months.unshift(new Date(cursor));
+          cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() - 1, 1));
+        }
         months.forEach((monthStart) => {
           const monthKey = `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, '0')}`;
           const monthRows = rows.filter((r) => toDateString(r.date).slice(0, 7) === monthKey);
@@ -265,11 +286,12 @@
       const data = buildBuckets(days);
       const maxVal = Math.max(1, ...data.flatMap(d => [d.revenue, d.profit, d.cost]));
       const ticks = [1,0.75,0.5,0.25,0].map(p => Math.round(maxVal * p));
+      const barsClass = data.length > 8 ? 'bars tight' : 'bars';
       $('chartWrap').innerHTML = `
         <div class="yAxis">${ticks.map(v => `<div>${euro(v)}</div>`).join('')}</div>
         <div class="plot">
           <div class="gridLine" style="top:8px"></div><div class="gridLine" style="top:25%"></div><div class="gridLine" style="top:50%"></div><div class="gridLine" style="top:75%"></div><div class="gridLine" style="bottom:24px"></div>
-          <div class="bars">${data.map(d => `
+          <div class="${barsClass}">${data.map(d => `
             <div class="barGroup">
               <div class="barStack">
                 <div class="bar barRev" style="height:${Math.max(4,(d.revenue/maxVal)*210)}px" title="Umsatz ${euro(d.revenue)}"></div>
@@ -504,29 +526,6 @@
       toggleSidebar(false);
     }
 
-    async function handleCalcImage(event) {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      $('visionStatus').textContent = 'Analysiere Bild…';
-      try {
-        const payload = { filename: file.name, size: file.size };
-        const result = await api('/vision/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        $('visionStatus').textContent = `Erkannt: ${result.productName} ${result.model} (${result.condition}), EK ${euro(result.estimatedCost)} / VK ${euro(result.marketPrice)}`;
-        if (result.productName) {
-          $('calcTitle').value = `${result.productName} ${result.model}`.trim();
-        }
-        if (result.estimatedCost) $('calcEk').value = result.estimatedCost;
-        if (result.marketPrice) $('calcVk').value = result.marketPrice;
-      } catch (error) {
-        $('visionStatus').textContent = 'Analyse nicht möglich';
-      }
-    }
-
-    function calc() {
-      const vk = Number($('calcVk').value || 0), ek = Number($('calcEk').value || 0), shipping = Number($('calcShipping').value || 0), other = Number($('calcOther').value || 0); const fees = vk * 0.12 + 0.35; const fixedShare = Number(state.metrics?.monthlyFixedCosts || 0) / 30; const profit = vk - ek - fees - shipping - other - fixedShare; const verdict = profit > 0 ? 'FREIGABE' : 'STOP';
-      $('calcBtn').className = profit > 0 ? 'btnGreen' : 'btnRed'; $('calcResult').innerHTML = `<div class="${profit > 0 ? 'profitPos' : 'profitNeg'}" style="font-size:20px;font-weight:800">${verdict}</div><div>Gewinn: ${euro(profit)}</div><div>Gebühren: ${euro(fees)}</div><div>Versand: ${euro(shipping)}</div><div>Sonstige: ${euro(other)}</div><div>Fixkosten-Anteil: ${euro(fixedShare)}</div>`;
-    }
-
     function toggleSidebar(show) { $('sidebar').classList.toggle('open', show); $('backdrop').classList.toggle('show', show); }
     async function boot() {
       setLoading();
@@ -550,7 +549,7 @@
       }
     });
     [...document.querySelectorAll('.chip')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
-    $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc; $('calcImage').onchange = handleCalcImage; $('saleModalSave').onclick = saveSaleModal; $('saleModalCancel').onclick = closeSaleModal; $('saleModalBackdrop').onclick = closeSaleModal; boot();
+    $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('saleModalSave').onclick = saveSaleModal; $('saleModalCancel').onclick = closeSaleModal; $('saleModalBackdrop').onclick = closeSaleModal; boot();
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js').catch(() => {});

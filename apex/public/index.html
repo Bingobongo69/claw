@@ -87,11 +87,13 @@
       let cacheKey = '';
       let cacheValue = { listTotal: 0, purchaseTotal: 0, rows: [] };
       return (rows) => {
-        const key = rows.length ? `${rows.length}_${rows[0]?.sku || ''}_${rows[rows.length - 1]?.sku || ''}_${rows.reduce((sum, item) => sum + Number(item.listPrice ?? 0), 0)}_${rows.reduce((sum, item) => sum + Number(item.purchasePrice ?? 0), 0)}` : 'empty';
+        const key = rows.length
+          ? `${rows.length}_${rows[0]?.sku || ''}_${rows[rows.length - 1]?.sku || ''}_${rows.reduce((sum, item) => sum + Number(item.listPrice ?? 0), 0)}_${rows.reduce((sum, item) => sum + Number((item.purchaseValue ?? (Number(item.purchasePrice ?? 0) * Number(item.quantity ?? 0)))), 0)}`
+          : 'empty';
         if (key === cacheKey) return cacheValue;
         const sortedRows = rows.slice().sort((a, b) => new Date(toDateString(b.date)) - new Date(toDateString(a.date)));
         const listTotal = sortedRows.reduce((sum, item) => sum + Number(item.listPrice ?? 0), 0);
-        const purchaseTotal = sortedRows.reduce((sum, item) => sum + Number(item.purchasePrice ?? 0), 0);
+        const purchaseTotal = sortedRows.reduce((sum, item) => sum + Number(item.purchaseValue ?? (Number(item.purchasePrice ?? 0) * Number(item.quantity ?? 0))), 0);
         cacheKey = key;
         cacheValue = { listTotal, purchaseTotal, rows: sortedRows };
         return cacheValue;
@@ -335,14 +337,20 @@
       const dateIdx = idx['Einstell-Datum'] ?? idx['Datum'] ?? idx['Date'] ?? 5;
       const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6;
       const purchaseIdx = idx['Einkaufswert'] ?? idx['EK'] ?? idx['Einkauf'] ?? 2;
-      state.inventory = rows.map((r) => ({
-        sku: r[skuIdx],
-        title: r[titleIdx],
-        quantity: Number(r[qtyIdx] ?? 0) || 0,
-        date: r[dateIdx],
-        listPrice: Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0,
-        purchasePrice: Number(String(r[purchaseIdx] ?? '0').replace(',','.')) || 0
-      }));
+      state.inventory = rows.map((r) => {
+        const quantity = Number(r[qtyIdx] ?? 0) || 0;
+        const listPrice = Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0;
+        const purchasePrice = Number(String(r[purchaseIdx] ?? '0').replace(',','.')) || 0;
+        return {
+          sku: r[skuIdx],
+          title: r[titleIdx],
+          quantity,
+          date: r[dateIdx],
+          listPrice,
+          purchasePrice,
+          purchaseValue: purchasePrice * quantity
+        };
+      });
       inventoryListDirty = true;
       renderInventoryList();
     }

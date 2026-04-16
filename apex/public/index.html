@@ -27,6 +27,11 @@
     .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.saleTitle{font-size:13px;font-weight:600;color:var(--muted)} .saleRevenue{font-size:24px;font-weight:800;line-height:1}.saleProfit{font-size:13px;margin-top:6px}.saleMeta,.taskMeta,.costRow{font-size:12px;color:var(--muted)} .costRow{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}.profitPos{color:var(--green);font-weight:700}.profitNeg{color:var(--red);font-weight:700}
     label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input{width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)} button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155}.btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)} .calcResult{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
     .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(520px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
+    .modalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:.2s;z-index:30}
+    .modalBackdrop.show{opacity:1;pointer-events:auto}
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(0.95);width:min(420px,90vw);background:rgba(15,23,42,0.98);border:1px solid var(--border);border-radius:20px;padding:20px;box-shadow:var(--shadow);z-index:31;opacity:0;pointer-events:none;transition:.2s}
+    .modal.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+    .modalActions{display:flex;justify-content:flex-end;gap:12px;margin-top:18px}
     .sidebar{position:fixed;top:0;left:0;height:100vh;width:min(380px,88vw);background:rgba(15,23,42,0.96);backdrop-filter:blur(18px);border-right:1px solid var(--border);transform:translateX(-100%);transition:.25s;padding:18px;z-index:20}.sidebar.open{transform:translateX(0)} .backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);opacity:0;pointer-events:none;transition:.2s;z-index:19}.backdrop.show{opacity:1;pointer-events:auto}
     .skeleton{position:relative;overflow:hidden;background:rgba(255,255,255,0.05)}.skeleton::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);animation:shine 1.3s infinite}@keyframes shine{100%{transform:translateX(100%)}}
   </style>
@@ -44,7 +49,21 @@
       <div class="kpis" id="kpis"></div>
     </section>
 
-    <section class="section" id="salesSection"><div class="glass card" style="margin-bottom:12px"><div class="title" style="font-size:16px">Verkäufe</div><div class="subtitle">Nur valide Order-IDs</div></div><div class="list" id="salesList"></div></section>
+    <section class="section" id="salesSection">
+      <div class="glass card" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+          <div>
+            <div class="title" style="font-size:16px">Verkäufe</div>
+            <div class="subtitle">Nur valide Order-IDs</div>
+          </div>
+          <div style="text-align:right">
+            <div class="subtitle">Gesamtmarge</div>
+            <div class="kpiVal" id="salesMarginKpi">-</div>
+          </div>
+        </div>
+      </div>
+      <div class="list" id="salesList"></div>
+    </section>
     <section class="section" id="calcSection"><div class="glass card stack"><div class="title" style="font-size:16px">Smart Kalkulation</div><div class="row"><div><label>Titel</label><input id="calcTitle" type="text" placeholder="Produktname" /></div><div><label>Bildanalyse</label><input id="calcImage" type="file" accept="image/*" /></div></div><div class="subtitle" id="visionStatus"></div><div class="row"><div><label>VK</label><input id="calcVk" type="number" value="25" /></div><div><label>EK</label><input id="calcEk" type="number" value="8" /></div></div><div class="row"><div><label>Versand</label><input id="calcShipping" type="number" value="0" /></div><div><label>Sonstige Kosten</label><input id="calcOther" type="number" value="0" /></div></div><button id="calcBtn">Berechnen</button><div class="calcResult" id="calcResult">Noch keine Berechnung.</div></div></section>
     <section class="section" id="goalsSection"><div class="glass card stack"><div class="title" style="font-size:16px">Ziele</div><div class="subtitle">Fortschritt je Ziel</div><div id="goalsSummary" class="stack"></div></div></section>
     <section class="section" id="healthSection">
@@ -75,6 +94,31 @@
 
   <nav class="bottomTabs"><button class="tabBtn active" data-tab="dashboardSection">Übersicht</button><button class="tabBtn" data-tab="salesSection">Verkäufe</button><button class="tabBtn" data-tab="calcSection">Kalkulator</button><button class="tabBtn" data-tab="goalsSection">Ziele</button><button class="tabBtn" data-tab="inventorySection">Warenbestand</button></nav>
 
+  <div class="modalBackdrop" id="saleModalBackdrop"></div>
+  <div class="modal" id="saleModal">
+    <div class="title" style="font-size:16px">Verkauf bearbeiten</div>
+    <div class="subtitle" id="saleModalOrder">-</div>
+    <div class="stack" style="margin-top:10px">
+      <div>
+        <label>Versand (€)</label>
+        <input type="number" step="0.01" id="modalShipping" />
+      </div>
+      <div>
+        <label>eBay-Gebühr (%)</label>
+        <input type="number" step="0.01" id="modalFeePct" />
+      </div>
+      <div>
+        <label>Einstellwert (€)</label>
+        <input type="number" step="0.01" id="modalListingValue" />
+      </div>
+    </div>
+    <div class="modalActions">
+      <button id="saleModalCancel">Abbrechen</button>
+      <button class="btnGreen" id="saleModalSave">Speichern</button>
+    </div>
+    <div class="subtitle" id="saleModalStatus"></div>
+  </div>
+
   <script>
     const $ = (id) => document.getElementById(id);
     const state = { metrics:null, sales:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7 };
@@ -83,6 +127,7 @@
     let salesStats = {};
     let activeSection = 'dashboardSection';
     let inventoryListDirty = true;
+    let saleModalState = { orderId: null };
     const memoizedInventory = (() => {
       let cacheKey = '';
       let cacheValue = { listTotal: 0, purchaseTotal: 0, rows: [] };
@@ -259,7 +304,36 @@
 
     function renderSales() {
       const rows = state.sales || [];
-      $('salesList').innerHTML = rows.length ? rows.map(r => `<div class="glass sale"><div class="saleTop"><div><div class="saleTitle">${r.title || '-'}</div><div class="saleRevenue">${euro(r.vk)}</div><div class="saleProfit ${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">Gewinn: ${euro(r.profit)}</div></div><div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}</div></div><div class="costRow"><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)}</span></div></div>`).join('') : `<div class="glass sale">Keine gültigen Verkäufe.</div>`;
+      const totalRevenue = rows.reduce((sum, r) => sum + Number(r.vk || 0), 0);
+      const totalProfit = rows.reduce((sum, r) => sum + Number(r.profit || 0), 0);
+      const marginPct = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+      const kpi = $('salesMarginKpi');
+      if (kpi) kpi.textContent = totalRevenue > 0 ? `${marginPct.toFixed(1)}%` : '-';
+      if (!rows.length) {
+        $('salesList').innerHTML = '<div class="glass sale">Keine gültigen Verkäufe.</div>';
+        return;
+      }
+      $('salesList').innerHTML = rows.map(r => {
+        const cost = Number(r.cost || 0);
+        const marginEuro = Number(r.vk || 0) - cost;
+        const roi = cost > 0 ? (Number(r.profit || 0) / cost) * 100 : (Number(r.vk || 0) > 0 ? (Number(r.profit || 0) / Number(r.vk || 0)) * 100 : 0);
+        const feePct = Number(r.vk || 0) > 0 ? (Number(r.fees || 0) / Number(r.vk || 0)) * 100 : 0;
+        return `<div class="glass sale" data-sale-row="${r.orderId}">
+          <div class="saleTop">
+            <div>
+              <div class="saleTitle">${r.title || '-'}</div>
+              <div class="saleRevenue">${euro(r.vk)}</div>
+              <div class="saleProfit ${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">Gewinn: ${euro(r.profit)}</div>
+            </div>
+            <div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}</div>
+          </div>
+          <div class="costRow"><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)} (${feePct.toFixed(1)}%)</span></div>
+          <div class="costRow"><span>Marge: ${euro(marginEuro)}</span><span>ROI: ${roi.toFixed(1)}%</span></div>
+        </div>`;
+      }).join('');
+      document.querySelectorAll('[data-sale-row]').forEach((el) => {
+        el.onclick = () => openSaleModal(el.dataset.saleRow);
+      });
     }
 
     function renderInventoryList() {
@@ -318,6 +392,48 @@
       restockList.innerHTML = restock.length ? restock.map((item) => `<div class="glass sale"><div class="saleTitle">${item.sku || ''}</div><div class="taskMeta">${item.title || ''}</div><div class="subtitle">Menge ${item.quantity} · ${salesStats[item.sku].last30Count} Verkäufe/30T</div></div>`).join('') : '<div class="subtitle">Keine dringenden Nachkäufe.</div>';
       const taxAmount = Math.max(0, (state.metrics?.totalProfit || 0) * 0.19);
       $('taxEstimate').textContent = euro(taxAmount);
+    }
+
+    function openSaleModal(orderId) {
+      const sale = (state.sales || []).find((row) => row.orderId === orderId);
+      if (!sale) return;
+      saleModalState.orderId = sale.orderId;
+      $('saleModalOrder').textContent = `${sale.orderId} · ${sale.title || ''}`;
+      $('modalShipping').value = Number(sale.shippingCost || 0).toFixed(2);
+      const feePct = Number(sale.vk || 0) > 0 ? (Number(sale.fees || 0) / Number(sale.vk || 0)) * 100 : 0;
+      $('modalFeePct').value = feePct.toFixed(2);
+      $('modalListingValue').value = Number(sale.listingValue || sale.vk || 0).toFixed(2);
+      $('saleModalStatus').textContent = '';
+      $('saleModalBackdrop').classList.add('show');
+      $('saleModal').classList.add('show');
+    }
+
+    function closeSaleModal() {
+      saleModalState.orderId = null;
+      $('saleModalBackdrop').classList.remove('show');
+      $('saleModal').classList.remove('show');
+    }
+
+    async function saveSaleModal() {
+      if (!saleModalState.orderId) return;
+      const shipping = Number($('modalShipping').value || 0);
+      const feePct = Number($('modalFeePct').value || 0);
+      const listingValue = Number($('modalListingValue').value || 0);
+      $('saleModalStatus').textContent = 'Speichere…';
+      try {
+        await api('/sales/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: saleModalState.orderId, shippingCost: shipping, feePct, listingValue })
+        });
+        await Promise.all([loadSales(), loadMetrics()]);
+        renderSales();
+        renderDashboard();
+        $('saleModalStatus').textContent = 'Gespeichert';
+        setTimeout(() => closeSaleModal(), 600);
+      } catch (err) {
+        $('saleModalStatus').textContent = 'Fehler: ' + (err?.message || err || 'unbekannt');
+      }
     }
 
     async function loadSales() {
@@ -434,7 +550,7 @@
       }
     });
     [...document.querySelectorAll('.chip')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
-    $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc; $('calcImage').onchange = handleCalcImage; boot();
+    $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc; $('calcImage').onchange = handleCalcImage; $('saleModalSave').onclick = saveSaleModal; $('saleModalCancel').onclick = closeSaleModal; $('saleModalBackdrop').onclick = closeSaleModal; boot();
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js').catch(() => {});

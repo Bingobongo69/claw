@@ -142,6 +142,17 @@ function doPost(e) {
       return _json({ ok: true, count: (body.rows || []).length });
     }
 
+    if (action === "updateSale") {
+      var orderId = String(body.orderId || "").trim();
+      if (!orderId) return _json({ ok: false, error: "missing_order_id" });
+      var result = updateSaleRow_(orderId, {
+        shippingCost: body.shippingCost,
+        feePct: body.feePct,
+        listingValue: body.listingValue
+      });
+      return _json(result);
+    }
+
     return _json({ ok: false, error: "unknown_action", action: action });
   } catch (err) {
     return _json({ ok: false, error: String(err && err.message ? err.message : err) });
@@ -219,6 +230,58 @@ function writeAuditRows_(rows) {
   sheet.getRange(1,1,1,headers.length).setValues([headers]);
   if (!rows || !rows.length) return;
   sheet.getRange(2,1,rows.length,headers.length).setValues(rows);
+}
+
+function updateSaleRow_(orderId, payload) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Verkäufe");
+  if (!sheet) return { ok: false, error: "sheet_not_found" };
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2) return { ok: false, error: "no_rows" };
+  var header = sheet.getRange(1,1,1,lastCol).getValues()[0];
+  var rows = sheet.getRange(2,1,lastRow-1,lastCol).getValues();
+  var orderIdx = findHeaderIndex_(header, ["Order-ID","OrderID","ID"]);
+  if (orderIdx === -1) return { ok: false, error: "order_column_missing" };
+  var targetRow = -1;
+  for (var i=0;i<rows.length;i++) {
+    var value = String(rows[i][orderIdx] || "").trim();
+    if (value && value === orderId) {
+      targetRow = i + 2;
+      break;
+    }
+  }
+  if (targetRow === -1) return { ok: false, error: "order_not_found" };
+
+  var updates = [];
+  var shippingCol = findHeaderIndex_(header, ["Versand"]);
+  if (shippingCol !== -1 && payload.shippingCost !== undefined && payload.shippingCost !== null) {
+    updates.push({ col: shippingCol + 1, value: Number(payload.shippingCost) });
+  }
+  var feePctCol = findHeaderIndex_(header, ["Gebühr %","Gebühr Prozent","Gebühr%"]);
+  if (payload.feePct !== undefined && payload.feePct !== null && feePctCol !== -1) {
+    updates.push({ col: feePctCol + 1, value: Number(payload.feePct) });
+  }
+  var listingCol = findHeaderIndex_(header, ["Einstellwert","ListPrice","Listing","VK"]);
+  if (listingCol !== -1 && payload.listingValue !== undefined && payload.listingValue !== null) {
+    updates.push({ col: listingCol + 1, value: Number(payload.listingValue) });
+  }
+
+  updates.forEach(function(update) {
+    sheet.getRange(targetRow, update.col).setValue(update.value);
+  });
+
+  return { ok: true, updated: updates.length };
+}
+
+function findHeaderIndex_(header, names) {
+  for (var i=0;i<header.length;i++) {
+    var value = String(header[i] || "").trim();
+    for (var j=0;j<names.length;j++) {
+      if (value.toLowerCase() === String(names[j]).toLowerCase()) return i;
+    }
+  }
+  return -1;
 }
 
 function upsertSetting_(key, value, type, note) {

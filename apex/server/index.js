@@ -117,6 +117,8 @@ function normalizeSalesRows(data) {
   const iShipping = idx["Versand"] ?? 5;
   const iFees = idx["Gebühr"] ?? 6;
   const iSku = idx["SKU"] ?? idx["Sku"] ?? idx["Artikelnummer"] ?? idx["Artikel-Nr"] ?? 2;
+  const iCost = idx["EK"] ?? idx["Einkauf"] ?? idx["Einkaufspreis"] ?? idx["Einkaufswert"] ?? idx["Kosten"];
+  const iListing = idx["Einstellwert"] ?? idx["ListPrice"] ?? idx["Listing"];
   return (data.rows || [])
     .filter((r) => String(r[iOrder] ?? "").trim() !== "")
     .map((r) => ({
@@ -127,7 +129,9 @@ function normalizeSalesRows(data) {
       shippingCost: Number(String(r[iShipping] ?? "0").replace(",", ".")) || 0,
       fees: Number(String(r[iFees] ?? "0").replace(",", ".")) || 0,
       orderId: String(r[iOrder] ?? "").trim(),
-      sku: String(r[iSku] ?? "").trim()
+      sku: String(r[iSku] ?? "").trim(),
+      cost: Number(String(iCost !== undefined ? r[iCost] ?? "0" : "0").replace(",", ".")) || 0,
+      listingValue: Number(String(iListing !== undefined ? r[iListing] ?? "0" : "0").replace(",", ".")) || 0
     }))
     .sort((a, b) => normalizeDateString(b.date).localeCompare(normalizeDateString(a.date)));
 }
@@ -205,6 +209,27 @@ app.get("/sales", async (req, res) => {
     const rows = normalizeSalesRows(data);
     res.json({ ok: true, rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); }
+});
+
+app.post("/sales/update", async (req, res) => {
+  const schema = z.object({
+    orderId: z.string().min(1),
+    shippingCost: z.number().optional(),
+    feePct: z.number().optional(),
+    listingValue: z.number().optional()
+  });
+  try {
+    const body = schema.parse(req.body || {});
+    const payload = { action: "updateSale", orderId: body.orderId };
+    if (body.shippingCost !== undefined) payload.shippingCost = body.shippingCost;
+    if (body.feePct !== undefined) payload.feePct = body.feePct;
+    if (body.listingValue !== undefined) payload.listingValue = body.listingValue;
+    await callSheets(payload);
+    res.json({ ok: true });
+  } catch (e) {
+    const status = e instanceof z.ZodError ? 400 : 500;
+    res.status(status).json({ ok: false, error: String(e.message || e) });
+  }
 });
 
 app.get("/reports/weekly", async (req, res) => {

@@ -3,10 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/app-icon.png" />
+  <link rel="icon" href="/app-icon.png" />
   <title>Apex</title>
   <style>
     :root { --bg:#0f172a; --bg2:#111827; --card:rgba(255,255,255,0.08); --border:rgba(255,255,255,0.10); --text:#e5eefc; --muted:#94a3b8; --accent:#60a5fa; --green:#22c55e; --red:#ef4444; --yellow:#f59e0b; --shadow:0 10px 30px rgba(0,0,0,0.25); --radius:20px; }
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);color:var(--text)}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);color:var(--text);overflow-x:hidden}
     .app{max-width:520px;margin:0 auto;min-height:100vh;padding:18px 16px 96px;position:relative}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;color:var(--muted)}
     .iconBtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--border);background:var(--card);backdrop-filter:blur(18px);color:var(--text)} .glass{background:var(--card);border:1px solid var(--border);backdrop-filter:blur(18px);box-shadow:var(--shadow);border-radius:var(--radius)}
     .card{padding:16px}.section{display:none}.section.active{display:block}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stack{display:grid;gap:12px}.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.kpiVal{font-size:24px;font-weight:800;margin-top:8px}.kpiLabel{font-size:12px;color:var(--muted)}
@@ -50,9 +55,15 @@
     <section class="section" id="inventorySection">
       <div class="glass card stack">
         <div class="title" style="font-size:16px">Warenbestand</div>
-        <div>
-          <div class="subtitle">Gesamtwert</div>
-          <div class="kpiVal" id="inventoryTotal">-</div>
+        <div class="row" style="grid-template-columns:1fr 1fr">
+          <div>
+            <div class="subtitle">Einstellwert</div>
+            <div class="kpiVal" id="inventoryListValue">-</div>
+          </div>
+          <div>
+            <div class="subtitle">Einkaufswert</div>
+            <div class="kpiVal" id="inventoryPurchaseValue">-</div>
+          </div>
         </div>
       </div>
       <div class="glass card" style="margin-top:12px">
@@ -72,6 +83,20 @@
     let salesStats = {};
     let activeSection = 'dashboardSection';
     let inventoryListDirty = true;
+    const memoizedInventory = (() => {
+      let cacheKey = '';
+      let cacheValue = { listTotal: 0, purchaseTotal: 0, rows: [] };
+      return (rows) => {
+        const key = rows.length ? `${rows.length}_${rows[0]?.sku || ''}_${rows[rows.length - 1]?.sku || ''}_${rows.reduce((sum, item) => sum + Number(item.listPrice ?? 0), 0)}_${rows.reduce((sum, item) => sum + Number(item.purchasePrice ?? 0), 0)}` : 'empty';
+        if (key === cacheKey) return cacheValue;
+        const sortedRows = rows.slice().sort((a, b) => new Date(toDateString(b.date)) - new Date(toDateString(a.date)));
+        const listTotal = sortedRows.reduce((sum, item) => sum + Number(item.listPrice ?? 0), 0);
+        const purchaseTotal = sortedRows.reduce((sum, item) => sum + Number(item.purchasePrice ?? 0), 0);
+        cacheKey = key;
+        cacheValue = { listTotal, purchaseTotal, rows: sortedRows };
+        return cacheValue;
+      };
+    })();
     async function api(url, opts) { const res = await fetch(url, opts); if (!res.ok) throw new Error(await res.text()); return res.json(); }
     const euro = (v) => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(v||0));
 
@@ -236,19 +261,17 @@
     }
 
     function renderInventoryList() {
-      if (activeSection !== 'inventorySection' || !inventoryListDirty) return;
       const listEl = $('inventoryList');
-      const totalEl = $('inventoryTotal');
-      if (!listEl || !totalEl) return;
-      const rows = (state.inventory || []).slice().sort((a, b) => {
-        const da = new Date(toDateString(a.date));
-        const db = new Date(toDateString(b.date));
-        return db - da;
-      });
-      const totalValue = rows.reduce((sum, item) => sum + Number(item.listPrice || 0), 0);
-      totalEl.textContent = euro(totalValue);
+      const listValEl = $('inventoryListValue');
+      const purchaseValEl = $('inventoryPurchaseValue');
+      if (!listEl || !listValEl || !purchaseValEl) return;
+      const { listTotal, purchaseTotal, rows } = memoizedInventory(state.inventory || []);
+      listValEl.textContent = euro(listTotal);
+      purchaseValEl.textContent = euro(purchaseTotal);
+      if (activeSection !== 'inventorySection' || !inventoryListDirty) return;
       if (!rows.length) {
         listEl.innerHTML = '<div class="subtitle">Aktuell keine Einträge.</div>';
+        inventoryListDirty = false;
         return;
       }
       listEl.innerHTML = rows.map((item) => {
@@ -311,15 +334,17 @@
       const qtyIdx = idx['Menge Aktuell'] ?? idx['Menge'] ?? 3;
       const dateIdx = idx['Einstell-Datum'] ?? idx['Datum'] ?? idx['Date'] ?? 5;
       const priceIdx = idx['Einstellwert'] ?? idx['ListPrice'] ?? idx['VK'] ?? 6;
+      const purchaseIdx = idx['Einkaufswert'] ?? idx['EK'] ?? idx['Einkauf'] ?? 2;
       state.inventory = rows.map((r) => ({
         sku: r[skuIdx],
         title: r[titleIdx],
         quantity: Number(r[qtyIdx] ?? 0) || 0,
         date: r[dateIdx],
-        listPrice: Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0
+        listPrice: Number(String(r[priceIdx] ?? '0').replace(',','.')) || 0,
+        purchasePrice: Number(String(r[purchaseIdx] ?? '0').replace(',','.')) || 0
       }));
       inventoryListDirty = true;
-      if (activeSection === 'inventorySection') renderInventoryList();
+      renderInventoryList();
     }
     async function loadSettings() {
       const raw = await api('/settings');
@@ -402,6 +427,11 @@
     });
     [...document.querySelectorAll('.chip')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
     $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('calcBtn').onclick = calc; $('calcImage').onchange = handleCalcImage; boot();
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+      });
+    }
   </script>
 </body>
 </html>

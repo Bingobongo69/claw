@@ -8,6 +8,10 @@ services:
     envVars:
       - key: APEX_SHEETS_WEBAPP_URL
         sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
   - type: cron
     name: apex-weekly-telegram
     env: node

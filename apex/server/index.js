@@ -4,6 +4,7 @@ import fetch from "node-fetch";
 import { z } from "zod";
 import { normalizeSettingValue, normalizeDateString } from "./lib/utils.js";
 import { buildWeeklyReport } from "./lib/report.js";
+import { sendTelegramMessage } from "./lib/telegram.js";
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -37,6 +38,12 @@ const DEFAULT_FEE_FIXED = 0.35;
 const DEFAULT_GKV_LIMIT = 578;
 const DEFAULT_PROFIT_GOAL = 15000;
 const DEFAULT_REVENUE_GOAL = 15000;
+const LOW_STOCK_THRESHOLD = 3;
+const euroFormatter = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
+const salesAlertState = { initialized: false, seen: new Set() };
+const inventoryAlertState = { initialized: false, quantities: new Map(), lowStockNotified: new Set() };
+const dailyTargetState = { notifiedDate: null };
+let dayGoalCache = { value: null, fetchedAt: 0 };
 
 async function getSettingsMap() {
   const r = await callSheets({ action: "getSettings" });
@@ -207,6 +214,7 @@ app.get("/sales", async (req, res) => {
     const data = await callSheets({ action: "getSales" });
     if (!data.ok) return res.status(500).json(data);
     const rows = normalizeSalesRows(data);
+    handleSalesAlerts(rows);
     res.json({ ok: true, rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); }
 });
@@ -248,7 +256,13 @@ app.get("/reports/weekly", async (req, res) => {
   }
 });
 
-app.get("/inventory", async (req, res) => { try { res.json(await callSheets({ action: "getInventory" })); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+app.get("/inventory", async (req, res) => {
+  try {
+    const payload = await callSheets({ action: "getInventory" });
+    res.json(payload);
+    handleInventoryAlerts(payload);
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); }
+});
 app.get("/fees", async (req, res) => { try { res.json(await callSheets({ action: "getSheet", sheet: "Fees" })); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 app.get("/settings", async (req, res) => { try { res.json({ ok: true, settings: await getSettingsMap() }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 app.post("/settings", async (req, res) => {
@@ -291,6 +305,110 @@ app.post("/vision/analyze", async (req, res) => {
     res.status(400).json({ ok: false, error: String(e.message || e) });
   }
 });
+
+function formatEuro(value) {
+  return euroFormatter.format(Number(value || 0));
+}
+
+function queueTelegram(text) {
+  sendTelegramMessage(text).catch((err) => console.error("telegram send error", err));
+}
+
+function handleSalesAlerts(rows) {
+  if (!Array.isArray(rows) || !rows.length) return;
+  if (!salesAlertState.initialized) {
+    rows.forEach((row) => { if (row.orderId) salesAlertState.seen.add(row.orderId); });
+    salesAlertState.initialized = true;
+    return;
+  }
+  rows.forEach((row) => {
+    const id = row.orderId;
+    if (!id || salesAlertState.seen.has(id)) return;
+    salesAlertState.seen.add(id);
+    queueTelegram(`🆕 Verkauf: ${row.title || id} – ${formatEuro(row.vk)}`);
+  });
+}
+
+function handleInventoryAlerts(payload) {
+  const items = mapInventoryItems(payload);
+  if (!items.length) return;
+  if (!inventoryAlertState.initialized) {
+    items.forEach((item) => inventoryAlertState.quantities.set(item.key, item.quantity));
+    inventoryAlertState.initialized = true;
+  } else {
+    items.forEach((item) => {
+      const prevQty = inventoryAlertState.quantities.get(item.key);
+      inventoryAlertState.quantities.set(item.key, item.quantity);
+      if (item.quantity < LOW_STOCK_THRESHOLD && (prevQty === undefined || prevQty >= LOW_STOCK_THRESHOLD) && !inventoryAlertState.lowStockNotified.has(item.key)) {
+        queueTelegram(`⚠️ Lagerbestand niedrig: ${item.title}`);
+        inventoryAlertState.lowStockNotified.add(item.key);
+      } else if (item.quantity >= LOW_STOCK_THRESHOLD && inventoryAlertState.lowStockNotified.has(item.key)) {
+        inventoryAlertState.lowStockNotified.delete(item.key);
+      }
+    });
+  }
+  checkDailyTargetFromItems(items).catch((err) => console.error("daily target check error", err));
+}
+
+function mapInventoryItems(payload) {
+  const header = payload?.header || [];
+  const rows = payload?.rows || [];
+  if (!rows.length) return [];
+  const idx = Object.fromEntries(header.map((h, i) => [String(h || "").trim(), i]));
+  const skuIdx = idx["SKU"] ?? idx["Sku"] ?? idx["Artikelnummer"] ?? idx["Artikel-Nr"];
+  const titleIdx = idx["Titel"] ?? idx["Title"] ?? idx["Name"];
+  const qtyIdx = idx["Menge Aktuell"] ?? idx["Menge"] ?? idx["Quantity"];
+  const dateIdx = idx["Einstell-Datum"] ?? idx["Datum"] ?? idx["Date"];
+  const listIdx = idx["Einstellwert"] ?? idx["ListPrice"] ?? idx["VK"];
+  return rows.map((row, i) => {
+    const keyRaw = skuIdx !== undefined ? row[skuIdx] : undefined;
+    const title = String(row[titleIdx] ?? keyRaw ?? `Artikel ${i + 1}`).trim();
+    const key = String(keyRaw ?? title ?? i).trim();
+    return {
+      key,
+      title: title || key,
+      quantity: parseNumberInput(row[qtyIdx]),
+      date: row[dateIdx],
+      listPrice: parseNumberInput(row[listIdx])
+    };
+  }).filter((item) => item.key);
+}
+
+function parseNumberInput(value) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const normalized = value.replace(/[^0-9,.-]/g, "").replace(",", ".");
+    const n = Number(normalized);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+function getLocalDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+async function getDayListingGoal() {
+  const now = Date.now();
+  if (dayGoalCache.value !== null && now - dayGoalCache.fetchedAt < 30 * 60 * 1000) return dayGoalCache.value;
+  const settings = await getSettingsMap().catch(() => ({}));
+  const goal = Number(settings.dayListingGoal ?? settings.dayGoal) || 2000;
+  dayGoalCache = { value: goal, fetchedAt: now };
+  return goal;
+}
+
+async function checkDailyTargetFromItems(items) {
+  if (!items.length) return;
+  const dayGoal = await getDayListingGoal();
+  const todayKey = getLocalDateKey();
+  const total = items.reduce((sum, item) => {
+    return normalizeDateString(item.date) === todayKey ? sum + Number(item.listPrice || 0) : sum;
+  }, 0);
+  if (total >= dayGoal && dailyTargetState.notifiedDate !== todayKey) {
+    queueTelegram("🎯 Tagesziel erreicht!");
+    dailyTargetState.notifiedDate = todayKey;
+  }
+}
 
 app.use((req, res, next) => {
   if (["/health", "/sheets/", "/metrics", "/sales", "/inventory", "/sourcing/", "/settings", "/todos", "/fees", "/bootstrap", "/command"].some((p) => req.path.startsWith(p))) return next();

@@ -104,17 +104,15 @@ function buildPlanText(period, remaining, daysLeft) {
   return `Es fehlen ${formatEuro(remaining)} zum Ziel. Empfohlen: ${formatEuro(perDay)} Einstellwert pro Tag (${period}).`;
 }
 
-async function main() {
-  const args = parseArgs();
-  const period = args.period || 'weekly';
+export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
   if (!PERIODS[period]) {
     throw new Error(`Unsupported period: ${period}`);
   }
   const baseUrl = process.env.APEX_BASE_URL || 'https://apex-app-610g.onrender.com';
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
-  const dryRun = Boolean(args['dry-run'] || process.env.DRY_RUN === '1');
-  if (!dryRun && (!token || !chatId)) throw new Error('Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID');
+  const effectiveDryRun = Boolean(dryRun || process.env.DRY_RUN === '1');
+  if (!effectiveDryRun && (!token || !chatId)) throw new Error('Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID');
 
   const lookbackDays = PERIODS[period].lookbackDays;
   const tz = process.env.REPORT_TIMEZONE || 'Europe/Berlin';
@@ -154,26 +152,39 @@ async function main() {
   ];
 
   const message = summaryLines.join('\n');
-  if (dryRun) {
-    console.log('--- DRY RUN ---');
-    console.log(message);
-    console.log('---------------');
-  } else {
-    const telegramUrl = `https://api.telegram.org/bot${token}/sendMessage`;
-    const res = await fetch(telegramUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: message })
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Telegram send failed: ${text}`);
-    }
-    console.log(`Sent ${period} report to Telegram chat ${chatId}`);
+  if (effectiveDryRun) {
+    return { ok: true, dryRun: true, message };
   }
+  const telegramUrl = `https://api.telegram.org/bot${token}/sendMessage`;
+  const res = await fetch(telegramUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text: message })
+  });
+  const bodyText = await res.text();
+  let parsed;
+  try { parsed = JSON.parse(bodyText); } catch { parsed = bodyText; }
+  if (!res.ok || (parsed && parsed.ok === false)) {
+    throw new Error(`Telegram send failed: ${bodyText}`);
+  }
+  return { ok: true, dryRun: false, response: parsed, message };
 }
 
-main().catch((err) => {
-  console.error('telegramReports error:', err);
-  process.exit(1);
-});
+async function main() {
+  const args = parseArgs();
+  const result = await sendReport({ period: args.period || 'weekly', dryRun: Boolean(args['dry-run']) });
+  if (result.dryRun) {
+    console.log('--- DRY RUN ---');
+    console.log(result.message);
+    console.log('---------------');
+  } else {
+    console.log(`Sent report (${result.response?.result?.message_id || 'ok'})`);
+  }
+}
+const directRun = process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href;
+if (directRun) {
+  main().catch((err) => {
+    console.error('telegramReports error:', err);
+    process.exit(1);
+  });
+}

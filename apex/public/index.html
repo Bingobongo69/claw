@@ -18,6 +18,7 @@
     .progressSlim{height:10px;background:rgba(255,255,255,0.07);border-radius:999px;overflow:hidden;margin-top:10px}.progressSlim>div{height:100%;background:linear-gradient(90deg,#60a5fa,#22c55e);border-radius:999px}
     .progressGoal{height:6px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin-top:8px}.progressGoal>div{height:100%;background:linear-gradient(90deg,#34d399,#0ea5e9);border-radius:999px}
     .goalItem{padding:12px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)} .goalHead{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}
+    .panelTitle{font-size:15px;font-weight:700}.miniGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.miniCard{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}.miniVal{font-size:20px;font-weight:800;margin-top:6px}.miniHint{font-size:12px;color:var(--muted);margin-top:6px}.actionList{display:grid;gap:10px}.actionItem{padding:12px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}.actionTop{display:flex;justify-content:space-between;gap:12px;align-items:center}.badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700}.badge.high{background:rgba(239,68,68,.16);color:#fca5a5}.badge.medium{background:rgba(245,158,11,.16);color:#fcd34d}.badge.low{background:rgba(34,197,94,.16);color:#86efac}
     .chartWrap{height:290px;margin-top:10px;display:grid;grid-template-columns:44px 1fr;gap:10px}.yAxis{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-size:10px;color:var(--muted);padding:8px 0}.plot{position:relative;height:100%;border-left:1px solid rgba(255,255,255,0.12);border-bottom:1px solid rgba(255,255,255,0.12);padding:8px 0 24px}.gridLine{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,0.06)}
     .bars{position:absolute;left:0;right:0;bottom:24px;top:8px;display:flex;gap:8px;align-items:flex-end;overflow:hidden}.bars.tight{gap:4px}.barGroup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.barStack{display:flex;gap:3px;align-items:flex-end;height:100%;width:100%;justify-content:center}.bar{width:9px;border-radius:6px 6px 3px 3px;min-height:4px}.bars.tight .bar{width:6px}.barRev{background:#60a5fa}.barProfit{background:#22c55e}.barCost{background:#ef4444}.xLabel{font-size:10px;color:var(--muted);margin-top:6px}
     .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}.chipRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.chip{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);font-size:12px;color:var(--muted)}.chip.active{background:rgba(96,165,250,0.18);color:#dbeafe;border-color:rgba(96,165,250,0.4)}
@@ -59,6 +60,14 @@
       <div class="glass card"><div class="title" style="font-size:16px">Verkaufsverlauf</div><div class="chipRow"><button class="chip active" data-range="7">7T</button><button class="chip" data-range="30">1M</button><button class="chip" data-range="90">Quartal</button><button class="chip" data-range="365">Jahr</button></div><div class="chartWrap" id="chartWrap"></div><div class="legend"><span><span class="dot" style="background:#60a5fa"></span>Umsatz</span><span><span class="dot" style="background:#22c55e"></span>Gewinn</span><span><span class="dot" style="background:#ef4444"></span>Kosten</span></div></div>
       <div class="glass card" style="margin-top:12px"><div class="subtitle">Tages-Einstellziel</div><div style="display:flex;justify-content:space-between;margin-top:6px"><strong id="todayProgressText">0%</strong><span class="subtitle" id="todaySub">0€ / 2.000€</span></div><div class="progressSlim"><div id="todayProgressBar" style="width:0%"></div></div></div>
       <div class="kpis" id="kpis"></div>
+      <div class="glass card stack" style="margin-top:12px">
+        <div class="panelTitle">Quick Insights</div>
+        <div class="miniGrid" id="insightGrid"></div>
+      </div>
+      <div class="glass card stack" style="margin-top:12px">
+        <div class="panelTitle">Nächste Aktionen</div>
+        <div class="actionList" id="actionList"></div>
+      </div>
     </section>
 
     <section class="section" id="salesSection">
@@ -173,12 +182,6 @@
       return rows
         .filter(r => toDateString(r.date) === today)
         .reduce((sum, r) => sum + Number(r.listPrice || 0), 0);
-    }
-
-    function findHistoryPrice(listing) {
-      if (!listing?.sku) return null;
-      const match = (state.sales || []).find((row) => row.sku && row.sku.trim() === listing.sku.trim());
-      return match ? Number(row.vk || 0) : null;
     }
 
     function computeSalesStats() {
@@ -320,10 +323,52 @@
       return `<div class="goalItem"><div class="goalHead"><span>${label}</span><strong>${pct.toFixed(1)}%</strong></div><div class="subtitle">${euro(current)} von ${euro(target)}</div><div class="progressGoal"><div style="width:${pct}%;background:${gradient}"></div></div></div>`;
     }
 
+    function renderExecutiveInsights() {
+      const insightGrid = $('insightGrid');
+      const actionList = $('actionList');
+      if (!insightGrid || !actionList) return;
+      const salesRows = state.sales || [];
+      const inventoryRows = state.inventory || [];
+      const profitableRows = salesRows.filter((row) => Number(row.profit || 0) > 0);
+      const avgProfit = profitableRows.length ? profitableRows.reduce((sum, row) => sum + Number(row.profit || 0), 0) / profitableRows.length : 0;
+      const lowMarginCount = salesRows.filter((row) => {
+        const revenue = Number(row.vk || 0);
+        return revenue > 0 && (Number(row.profit || 0) / revenue) < 0.2;
+      }).length;
+      const agedStock = inventoryRows.filter((item) => item.quantity > 0 && daysBetween(item.date) >= 45).length;
+      const topSkuMap = {};
+      for (const row of salesRows) {
+        const sku = row.sku?.trim() || 'Ohne SKU';
+        if (!topSkuMap[sku]) topSkuMap[sku] = { sku, qty: 0, profit: 0 };
+        topSkuMap[sku].qty += 1;
+        topSkuMap[sku].profit += Number(row.profit || 0);
+      }
+      const topSku = Object.values(topSkuMap).sort((a, b) => b.profit - a.profit)[0];
+      const restockCount = inventoryRows.filter((item) => item.quantity <= 2 && salesStats[item.sku]?.last30Count >= 2).length;
+      insightGrid.innerHTML = [
+        ['Top SKU', topSku ? topSku.sku : '-', topSku ? `${topSku.qty} Verkäufe · ${euro(topSku.profit)} Gewinn` : 'Noch keine Daten'],
+        ['Ø Gewinn / Sale', euro(avgProfit), lowMarginCount ? `${lowMarginCount} Verkäufe unter 20% Marge` : 'Marge stabil'],
+        ['Altes Inventar', `${agedStock}`, agedStock ? 'Artikel älter als 45 Tage' : 'Kein kritischer Altbestand'],
+        ['Offene Chance', `${restockCount}`, 'potenzielle Restocks']
+      ].map(([label, value, hint]) => `<div class="miniCard"><div class="kpiLabel">${label}</div><div class="miniVal">${value}</div><div class="miniHint">${hint}</div></div>`).join('');
+
+      const actions = [];
+      if (lowMarginCount) actions.push({ priority: 'high', title: 'Low-Margin Sales prüfen', note: `${lowMarginCount} Verkäufe liegen unter 20% Marge. Gebühren, EK oder Preis prüfen.` });
+      if (agedStock) actions.push({ priority: 'high', title: 'Altbestand reduzieren', note: `${agedStock} Artikel sind älter als 45 Tage. Preis senken oder Abverkauf testen.` });
+      if (topSku) actions.push({ priority: 'medium', title: 'Winning SKU nachkaufen', note: `${topSku.sku} ist aktuell dein stärkster Profit-Treiber.` });
+      if (restockCount) actions.push({ priority: 'medium', title: 'Restock-Kandidaten sichern', note: `${restockCount} SKUs verkaufen sich gut trotz knappem Bestand.` });
+      if (!actions.length) actions.push({ priority: 'low', title: 'Keine kritischen Aktionen', note: 'Aktuell sehen die Kernkennzahlen stabil aus.' });
+      actionList.innerHTML = actions.slice(0, 4).map((item) => `<div class="actionItem"><div class="actionTop"><div class="saleTitle">${item.title}</div><span class="badge ${item.priority}">${item.priority.toUpperCase()}</span></div><div class="miniHint">${item.note}</div></div>`).join('');
+    }
+
     function renderDashboard() {
       const m = state.metrics; const todayValue = getTodayListingValue(); const pct = Math.max(0, Math.min(100, (todayValue / state.dayGoal) * 100));
+      const totalRevenue = Number(m.totalRevenue || 0);
+      const totalProfit = Number(m.totalProfit || 0);
+      const blendedMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+      const avgOrder = Number(m.salesCount || 0) > 0 ? totalRevenue / Number(m.salesCount || 1) : 0;
       $('todayProgressText').textContent = `${pct.toFixed(0)}%`; $('todaySub').textContent = `${euro(todayValue)} / ${euro(state.dayGoal)}`; $('todayProgressBar').style.width = `${pct}%`;
-      $('kpis').innerHTML = [ ['Monatsgewinn', euro(m.monthProfit)], ['Netto nach Fixkosten', euro(m.netMonthProfit || 0)], ['Fixkosten', euro(m.monthlyFixedCosts || 0)], ['Sales', m.salesCount] ].map(([k,v])=>`<div class="glass card"><div class="kpiLabel">${k}</div><div class="kpiVal">${v}</div></div>`).join('');
+      $('kpis').innerHTML = [ ['Monatsgewinn', euro(m.monthProfit)], ['Netto nach Fixkosten', euro(m.netMonthProfit || 0)], ['Ø Bestellwert', euro(avgOrder)], ['Marge gesamt', `${blendedMargin.toFixed(1)}%`] ].map(([k,v])=>`<div class="glass card"><div class="kpiLabel">${k}</div><div class="kpiVal">${v}</div></div>`).join('');
       renderChart(state.range);
       const revenueTarget = state.yearGoal || m.revenueGoal || m.roadTo15kGoal || 0;
       const profitTarget = state.settings?.profitGoal ?? m.profitGoal ?? 0;
@@ -333,6 +378,7 @@
         goalTemplate('Tagesziel Einstellwert', todayValue, state.dayGoal, 'linear-gradient(90deg,#22c55e,#16a34a)'),
         goalTemplate('Gewinnziel Jahr', profitProgress, profitTarget, 'linear-gradient(90deg,#f97316,#ea580c)')
       ].join('');
+      renderExecutiveInsights();
       renderOpsInsights();
     }
 
@@ -397,18 +443,6 @@
         </div>`;
       }).join('');
       inventoryListDirty = false;
-    }
-
-    function priorityBadge(priority) {
-      if (priority === 'high') return '<span style="color:#ef4444;font-weight:700">HOCH</span>';
-      if (priority === 'medium') return '<span style="color:#f59e0b;font-weight:700">MITTEL</span>';
-      return '<span style="color:#22c55e;font-weight:700">NIEDRIG</span>';
-    }
-
-    function calculateSuggestedPrice(item) {
-      const base = Number(item?.price?.value);
-      if (!base) return null;
-      return { price: Number(base.toFixed(2)), label: 'Keine Marktdaten – Basispreis genutzt' };
     }
 
     function renderOpsInsights() {
@@ -533,8 +567,9 @@
         ['dayListingGoal', state.dayGoal]
       ];
       for (const [key, value] of items) await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, value, type:'number', note:'Aktualisiert im Apex-UI' }) });
-      await Promise.all([loadMetrics(), loadSettings(), loadInventory()]);
+      await Promise.all([loadMetrics(), loadSettings(), loadInventory(), loadSales()]);
       renderDashboard();
+      renderSales();
       toggleSidebar(false);
     }
 

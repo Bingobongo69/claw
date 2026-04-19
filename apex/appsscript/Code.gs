@@ -254,18 +254,40 @@ function updateSaleRow_(orderId, payload) {
   if (targetRow === -1) return { ok: false, error: "order_not_found" };
 
   var updates = [];
-  var shippingCol = findHeaderIndex_(header, ["Versand"]);
+  var shippingCol = findHeaderIndex_(header, ["Versand", "Versandkosten", "Shipping"]);
   if (shippingCol !== -1 && payload.shippingCost !== undefined && payload.shippingCost !== null) {
     updates.push({ col: shippingCol + 1, value: Number(payload.shippingCost) });
   }
-  var feePctCol = findHeaderIndex_(header, ["Gebühr %","Gebühr Prozent","Gebühr%"]);
-  if (payload.feePct !== undefined && payload.feePct !== null && feePctCol !== -1) {
-    updates.push({ col: feePctCol + 1, value: Number(payload.feePct) });
+  var feeAmountCol = findHeaderIndex_(header, ["Gebühr", "Gebühren", "Fee", "Fees"]);
+  if (payload.feePct !== undefined && payload.feePct !== null && feeAmountCol !== -1) {
+    var vkCol = findHeaderIndex_(header, ["VK", "Umsatz", "Verkaufspreis"]);
+    var vkValue = vkCol !== -1 ? Number(rows[targetRow - 2][vkCol] || 0) : 0;
+    var feeAmount = vkValue > 0 ? (vkValue * Number(payload.feePct) / 100) : 0;
+    updates.push({ col: feeAmountCol + 1, value: feeAmount });
   }
-  var listingCol = findHeaderIndex_(header, ["Einstellwert","ListPrice","Listing","VK"]);
+  var listingCol = findHeaderIndex_(header, ["Einstellwert","Listenpreis","ListPrice","Listing"]);
   if (listingCol !== -1 && payload.listingValue !== undefined && payload.listingValue !== null) {
     updates.push({ col: listingCol + 1, value: Number(payload.listingValue) });
   }
+
+  var costCol = findHeaderIndex_(header, ["EK", "EK-Gesamt", "Einkauf", "Einkaufswert"]);
+  var profitCol = findHeaderIndex_(header, ["Gewinn", "Profit"]);
+  if (profitCol !== -1) {
+    var rowValues = rows[targetRow - 2];
+    var revenueCol = findHeaderIndex_(header, ["VK", "Umsatz", "Verkaufspreis"]);
+    var revenue = revenueCol !== -1 ? Number(rowValues[revenueCol] || 0) : 0;
+    var cost = costCol !== -1 ? Number(rowValues[costCol] || 0) : 0;
+    var shipping = payload.shippingCost !== undefined && payload.shippingCost !== null
+      ? Number(payload.shippingCost)
+      : Number(shippingCol !== -1 ? rowValues[shippingCol] || 0 : 0);
+    var fees = payload.feePct !== undefined && payload.feePct !== null
+      ? (revenue > 0 ? (revenue * Number(payload.feePct) / 100) : 0)
+      : Number(feeAmountCol !== -1 ? rowValues[feeAmountCol] || 0 : 0);
+    var profit = revenue - cost - shipping - fees;
+    updates.push({ col: profitCol + 1, value: profit });
+  }
+
+  if (!updates.length) return { ok: false, error: "no_matching_columns", header: header };
 
   updates.forEach(function(update) {
     sheet.getRange(targetRow, update.col).setValue(update.value);

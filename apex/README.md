@@ -35,6 +35,7 @@ Endpoints:
 - `GET /sheets/ping`
 - `GET /metrics`
   - includes live KPI basis for dashboard plus revenue/profit goals
+- Dashboard now includes a dedicated Forecast tab with realistic next-month revenue/profit/order estimates plus data-quality warnings based on recent history and missing sales fields
 - `GET /sales`
 - `GET /reports/weekly?days=7&tz=Europe/Berlin`
 - `GET /inventory`

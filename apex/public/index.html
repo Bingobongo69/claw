@@ -566,7 +566,11 @@
         ['revenueGoal', state.yearGoal],
         ['dayListingGoal', state.dayGoal]
       ];
-      for (const [key, value] of items) await api('/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, value, type:'number', note:'Aktualisiert im Apex-UI' }) });
+      await Promise.all(items.map(([key, value]) => api('/settings', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ key, value, type:'number', note:'Aktualisiert im Apex-UI' })
+      })));
       await Promise.all([loadMetrics(), loadSettings(), loadInventory(), loadSales()]);
       renderDashboard();
       renderSales();

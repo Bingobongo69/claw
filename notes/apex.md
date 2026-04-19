@@ -20,6 +20,18 @@
 ## Still incomplete
 - final Glide wiring / visual setup pass inside Glide
 - optional richer dashboard polish beyond current API endpoints
+- no documented operating playbook yet for weekly review / repricing workflow
+
+## Bottlenecks found on 2026-04-19
+- Recent sales rows include multiple new orders with `profit=0`, `shippingCost=0`, `fees=0`, and `listingValue=0`, which makes margin reporting unreliable until enriched.
+- Tagesziel/day goal is currently set very high (`dayListingGoal=15000`) relative to observed listing flow, so the KPI is likely not decision-useful in daily ops.
+- Settings save in the UI was doing serial writes; this was slowed down unnecessarily and increased failure surface.
+- `/inventory` and `/sales/update` existed but were under-documented in README, increasing manual rediscovery cost.
+
+## Quick wins completed on 2026-04-19
+- Optimized Apex UI settings save flow to write settings in parallel instead of one-by-one.
+- Documented `/inventory` and `/sales/update` in `apex/README.md`.
+- Revalidated live backend locally: `/health`, `/metrics`, `/sales`, `/reports/weekly`, `/inventory` all respond.
 
 ## Verified on 2026-04-07
 - Google Apps Script Web App URL received and saved in `apex/.env`

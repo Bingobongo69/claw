@@ -36,6 +36,8 @@ Endpoints:
 - `GET /metrics`
 - `GET /sales`
 - `GET /reports/weekly?days=7&tz=Europe/Berlin`
+- `GET /inventory`
+- `POST /sales/update` body: `{ orderId, shippingCost?, feePct?, listingValue? }`
 - `GET /settings`
 - `POST /settings` body: `{ key, value, type?, note? }`
 - `GET /todos`

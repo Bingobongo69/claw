@@ -65,6 +65,10 @@
         <div class="miniGrid" id="insightGrid"></div>
       </div>
       <div class="glass card stack" style="margin-top:12px">
+        <div class="panelTitle">Prognose nächster Monat</div>
+        <div class="miniGrid" id="forecastGrid"></div>
+      </div>
+      <div class="glass card stack" style="margin-top:12px">
         <div class="panelTitle">Nächste Aktionen</div>
         <div class="actionList" id="actionList"></div>
       </div>
@@ -323,6 +327,95 @@
       return `<div class="goalItem"><div class="goalHead"><span>${label}</span><strong>${pct.toFixed(1)}%</strong></div><div class="subtitle">${euro(current)} von ${euro(target)}</div><div class="progressGoal"><div style="width:${pct}%;background:${gradient}"></div></div></div>`;
     }
 
+    function buildNextMonthForecast() {
+      const rows = state.sales || [];
+      const forecast = {
+        revenue: 0,
+        profit: 0,
+        orders: 0,
+        avgOrderValue: 0,
+        marginPct: 0,
+        confidence: 'niedrig'
+      };
+      if (!rows.length) return forecast;
+
+      const now = new Date();
+      const currentMonthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+      const monthly = new Map();
+      const recentRows = rows.filter((row) => {
+        const ds = toDateString(row.date);
+        if (!ds) return false;
+        const d = new Date(ds);
+        return !Number.isNaN(d.getTime()) && ((now - d) / 86400000) <= 120;
+      });
+
+      recentRows.forEach((row) => {
+        const ds = toDateString(row.date);
+        if (!ds) return;
+        const monthKey = ds.slice(0, 7);
+        if (!monthly.has(monthKey)) monthly.set(monthKey, { revenue: 0, profit: 0, orders: 0, days: new Set() });
+        const bucket = monthly.get(monthKey);
+        bucket.revenue += Number(row.vk || 0);
+        bucket.profit += Number(row.profit || 0);
+        bucket.orders += 1;
+        bucket.days.add(ds);
+      });
+
+      const monthEntries = Array.from(monthly.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([monthKey, values]) => ({ ...values, monthKey, activeDays: values.days.size }));
+      if (!monthEntries.length) return forecast;
+
+      const completedMonths = monthEntries.filter((entry) => entry.monthKey !== currentMonthKey);
+      const currentMonth = monthEntries.find((entry) => entry.monthKey === currentMonthKey);
+      const trendBase = completedMonths.slice(-3);
+      const projections = [];
+
+      if (trendBase.length) {
+        projections.push({
+          revenue: trendBase.reduce((sum, item) => sum + item.revenue, 0) / trendBase.length,
+          profit: trendBase.reduce((sum, item) => sum + item.profit, 0) / trendBase.length,
+          orders: trendBase.reduce((sum, item) => sum + item.orders, 0) / trendBase.length
+        });
+      }
+
+      if (currentMonth && currentMonth.activeDays > 0) {
+        const nextMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+        const nextMonthDays = new Date(Date.UTC(nextMonthDate.getUTCFullYear(), nextMonthDate.getUTCMonth() + 1, 0)).getUTCDate();
+        const revenuePerActiveDay = currentMonth.revenue / currentMonth.activeDays;
+        const profitPerActiveDay = currentMonth.profit / currentMonth.activeDays;
+        const ordersPerActiveDay = currentMonth.orders / currentMonth.activeDays;
+        projections.push({
+          revenue: revenuePerActiveDay * nextMonthDays,
+          profit: profitPerActiveDay * nextMonthDays,
+          orders: ordersPerActiveDay * nextMonthDays
+        });
+      }
+
+      if (!projections.length) return forecast;
+
+      forecast.revenue = projections.reduce((sum, item) => sum + item.revenue, 0) / projections.length;
+      forecast.profit = projections.reduce((sum, item) => sum + item.profit, 0) / projections.length;
+      forecast.orders = projections.reduce((sum, item) => sum + item.orders, 0) / projections.length;
+      forecast.avgOrderValue = forecast.orders > 0 ? forecast.revenue / forecast.orders : 0;
+      forecast.marginPct = forecast.revenue > 0 ? (forecast.profit / forecast.revenue) * 100 : 0;
+      forecast.confidence = completedMonths.length >= 2 ? 'mittel' : 'niedrig';
+      if (completedMonths.length >= 3 && currentMonth) forecast.confidence = 'mittel-hoch';
+      return forecast;
+    }
+
+    function renderForecast() {
+      const forecastGrid = $('forecastGrid');
+      if (!forecastGrid) return;
+      const forecast = buildNextMonthForecast();
+      forecastGrid.innerHTML = [
+        ['Umsatz', euro(forecast.revenue), 'Schätzung nächster Monat'],
+        ['Gewinn', euro(forecast.profit), `Marge ${forecast.marginPct.toFixed(1)}%`],
+        ['Bestellungen', `${Math.round(forecast.orders)}`, `Ø Warenkorb ${euro(forecast.avgOrderValue)}`],
+        ['Confidence', forecast.confidence, 'auf Basis aktueller + jüngerer Monatsdaten']
+      ].map(([label, value, hint]) => `<div class="miniCard"><div class="kpiLabel">${label}</div><div class="miniVal">${value}</div><div class="miniHint">${hint}</div></div>`).join('');
+    }
+
     function renderExecutiveInsights() {
       const insightGrid = $('insightGrid');
       const actionList = $('actionList');
@@ -379,6 +472,7 @@
         goalTemplate('Gewinnziel Jahr', profitProgress, profitTarget, 'linear-gradient(90deg,#f97316,#ea580c)')
       ].join('');
       renderExecutiveInsights();
+      renderForecast();
       renderOpsInsights();
     }
 

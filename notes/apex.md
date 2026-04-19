@@ -30,6 +30,7 @@
 
 ## Quick wins completed on 2026-04-19
 - Optimized Apex UI settings save flow to write settings in parallel instead of one-by-one.
+- Added dashboard forecast card for next-month revenue/profit/orders using current run-rate plus recent monthly history.
 - Documented `/inventory` and `/sales/update` in `apex/README.md`.
 - Revalidated live backend locally: `/health`, `/metrics`, `/sales`, `/reports/weekly`, `/inventory` all respond.
 

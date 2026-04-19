@@ -34,6 +34,7 @@ Endpoints:
 - `GET /health`
 - `GET /sheets/ping`
 - `GET /metrics`
+  - includes live KPI basis for dashboard plus revenue/profit goals
 - `GET /sales`
 - `GET /reports/weekly?days=7&tz=Europe/Berlin`
 - `GET /inventory`

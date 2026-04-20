@@ -39,8 +39,8 @@ Endpoints:
 - `GET /sales`
 - `GET /reports/weekly?days=7&tz=Europe/Berlin`
 - `GET /inventory`
-- `POST /sales/update` body: `{ orderId, shippingCost?, feePct?, listingValue? }`
-  - updates matching sale row in `Verkäufe`, recalculates fee amount from fee % and recalculates profit when matching columns exist
+- `POST /sales/update` body: `{ orderId, shippingCost?, purchaseCost?, feePct?, listingValue? }`
+  - updates matching sale row in `Verkäufe`, persists manual values in the sheet, recalculates fee amount from fee % and recalculates profit when matching columns exist
 - `GET /settings`
 - `POST /settings` body: `{ key, value, type?, note? }`
 - `GET /todos`

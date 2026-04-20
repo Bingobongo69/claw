@@ -223,6 +223,7 @@ app.post("/sales/update", async (req, res) => {
   const schema = z.object({
     orderId: z.string().min(1),
     shippingCost: z.number().optional(),
+    purchaseCost: z.number().optional(),
     feePct: z.number().optional(),
     listingValue: z.number().optional()
   });
@@ -230,6 +231,7 @@ app.post("/sales/update", async (req, res) => {
     const body = schema.parse(req.body || {});
     const payload = { action: "updateSale", orderId: body.orderId };
     if (body.shippingCost !== undefined) payload.shippingCost = body.shippingCost;
+    if (body.purchaseCost !== undefined) payload.purchaseCost = body.purchaseCost;
     if (body.feePct !== undefined) payload.feePct = body.feePct;
     if (body.listingValue !== undefined) payload.listingValue = body.listingValue;
     await callSheets(payload);

@@ -61,6 +61,10 @@
       <div class="glass card" style="margin-top:12px"><div class="subtitle">Tages-Einstellziel</div><div style="display:flex;justify-content:space-between;margin-top:6px"><strong id="todayProgressText">0%</strong><span class="subtitle" id="todaySub">0€ / 2.000€</span></div><div class="progressSlim"><div id="todayProgressBar" style="width:0%"></div></div></div>
       <div class="kpis" id="kpis"></div>
       <div class="glass card stack" style="margin-top:12px">
+        <div class="panelTitle">Sales</div>
+        <div class="miniGrid" id="salesOverviewGrid"></div>
+      </div>
+      <div class="glass card stack" style="margin-top:12px">
         <div class="panelTitle">Quick Insights</div>
         <div class="miniGrid" id="insightGrid"></div>
       </div>
@@ -134,6 +138,10 @@
     <div class="title" style="font-size:16px">Verkauf bearbeiten</div>
     <div class="subtitle" id="saleModalOrder">-</div>
     <div class="stack" style="margin-top:10px">
+      <div>
+        <label>Einkaufspreis (€)</label>
+        <input type="number" step="0.01" id="modalPurchaseCost" />
+      </div>
       <div>
         <label>Versand (€)</label>
         <input type="number" step="0.01" id="modalShipping" />
@@ -483,12 +491,17 @@
 
     function renderExecutiveInsights() {
       const insightGrid = $('insightGrid');
+      const salesOverviewGrid = $('salesOverviewGrid');
       const actionList = $('actionList');
       if (!insightGrid || !actionList) return;
       const salesRows = state.sales || [];
       const inventoryRows = state.inventory || [];
       const profitableRows = salesRows.filter((row) => Number(row.profit || 0) > 0);
       const avgProfit = profitableRows.length ? profitableRows.reduce((sum, row) => sum + Number(row.profit || 0), 0) / profitableRows.length : 0;
+      const salesCount = salesRows.length;
+      const salesRevenue = salesRows.reduce((sum, row) => sum + Number(row.vk || 0), 0);
+      const salesProfit = salesRows.reduce((sum, row) => sum + Number(row.profit || 0), 0);
+      const salesMargin = salesRevenue > 0 ? (salesProfit / salesRevenue) * 100 : 0;
       const lowMarginCount = salesRows.filter((row) => {
         const revenue = Number(row.vk || 0);
         return revenue > 0 && (Number(row.profit || 0) / revenue) < 0.2;
@@ -503,6 +516,14 @@
       }
       const topSku = Object.values(topSkuMap).sort((a, b) => b.profit - a.profit)[0];
       const restockCount = inventoryRows.filter((item) => item.quantity <= 2 && salesStats[item.sku]?.last30Count >= 2).length;
+      if (salesOverviewGrid) {
+        salesOverviewGrid.innerHTML = [
+          ['Orders', `${salesCount}`, 'valide Verkäufe'],
+          ['Umsatz', euro(salesRevenue), 'gesamt'],
+          ['Gewinn', euro(salesProfit), 'gesamt'],
+          ['Marge', `${salesMargin.toFixed(1)}%`, 'über alle Sales']
+        ].map(([label, value, hint]) => `<div class="miniCard"><div class="kpiLabel">${label}</div><div class="miniVal">${value}</div><div class="miniHint">${hint}</div></div>`).join('');
+      }
       insightGrid.innerHTML = [
         ['Top SKU', topSku ? topSku.sku : '-', topSku ? `${topSku.qty} Verkäufe · ${euro(topSku.profit)} Gewinn` : 'Noch keine Daten'],
         ['Ø Gewinn / Sale', euro(avgProfit), lowMarginCount ? `${lowMarginCount} Verkäufe unter 20% Marge` : 'Marge stabil'],
@@ -626,6 +647,7 @@
       if (!sale) return;
       saleModalState.orderId = sale.orderId;
       $('saleModalOrder').textContent = `${sale.orderId} · ${sale.title || ''}`;
+      $('modalPurchaseCost').value = Number(sale.cost || 0).toFixed(2);
       $('modalShipping').value = Number(sale.shippingCost || 0).toFixed(2);
       const feePct = Number(sale.vk || 0) > 0 ? (Number(sale.fees || 0) / Number(sale.vk || 0)) * 100 : 0;
       $('modalFeePct').value = feePct.toFixed(2);
@@ -643,6 +665,7 @@
 
     async function saveSaleModal() {
       if (!saleModalState.orderId) return;
+      const purchaseCost = Number($('modalPurchaseCost').value || 0);
       const shipping = Number($('modalShipping').value || 0);
       const feePct = Number($('modalFeePct').value || 0);
       const listingValue = Number($('modalListingValue').value || 0);
@@ -651,7 +674,7 @@
         await api('/sales/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: saleModalState.orderId, shippingCost: shipping, feePct, listingValue })
+          body: JSON.stringify({ orderId: saleModalState.orderId, purchaseCost, shippingCost: shipping, feePct, listingValue })
         });
         await Promise.all([loadSales(), loadMetrics()]);
         renderSales();

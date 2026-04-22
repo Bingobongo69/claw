@@ -225,7 +225,7 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const state = { metrics:null, sales:null, salesAll:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7, salesFilter:{ range:'7d', from:'', to:'', search:'', sort:'date_desc' }, dashboard:null, loadedTabs:{ dashboard:false, sales:false, inventory:false } };
+    const state = { metrics:null, sales:null, salesAll:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7, salesFilter:{ range:'7d', from:'', to:'', search:'', sort:'date_desc' }, dashboard:null };
     let bucketMemo = new Map();
     let salesSignature = '';
     let salesStats = {};
@@ -894,45 +894,27 @@
     async function boot() {
       setLoading();
       try {
-        await Promise.all([loadMetrics(), loadSettings()]);
-        state.loadedTabs.dashboard = true;
+        await Promise.all([loadMetrics(), loadSettings(), loadSales(), loadInventory()]);
         requestAnimationFrame(() => {
           renderDashboard();
+          renderSales();
           $('syncState').textContent = 'Live-Daten';
         });
-        setTimeout(() => { ensureSalesLoaded(); }, 50);
-        setTimeout(() => { ensureInventoryLoaded(); }, 120);
       } catch (e) {
         $('syncState').textContent = 'Fehler beim Laden';
       }
     }
-
-    async function ensureSalesLoaded() {
-      if (state.loadedTabs.sales) return;
-      await loadSales();
-      state.loadedTabs.sales = true;
-      if (activeSection === 'salesSection') renderSales();
-    }
-
-    async function ensureInventoryLoaded() {
-      if (state.loadedTabs.inventory) return;
-      await loadInventory();
-      state.loadedTabs.inventory = true;
-      if (activeSection === 'inventorySection') renderInventoryList();
-    }
-    [...document.querySelectorAll('.tabBtn')].forEach(btn => btn.onclick = async () => {
+    [...document.querySelectorAll('.tabBtn')].forEach(btn => btn.onclick = () => {
       document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       btn.classList.add('active');
       $(btn.dataset.tab).classList.add('active');
       activeSection = btn.dataset.tab;
-      if (activeSection === 'salesSection') {
-        await ensureSalesLoaded();
-        renderSales();
-      }
       if (activeSection === 'inventorySection') {
-        await ensureInventoryLoaded();
         renderInventoryList();
+      }
+      if (activeSection === 'salesSection') {
+        renderSales();
       }
     });
     [...document.querySelectorAll('.chip[data-range]')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip[data-range]').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });

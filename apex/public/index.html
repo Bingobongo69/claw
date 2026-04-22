@@ -269,14 +269,9 @@
       state.dashboard = { ...(state.dashboard || {}), sales: { totals: data.totals || null, filter: data.filter || null } };
       salesSignature = `${state.sales.length}_${state.sales[0]?.orderId || ''}_${JSON.stringify(data.filter || {})}`;
       bucketMemo = new Map();
-      computeSalesStats();
       renderSales();
       renderFilteredSalesKpis(data.totals || {});
       syncSalesFilterUi(data.filter || state.salesFilter);
-      if (!state.salesAll) {
-        const allData = await api('/sales?sort=date_desc');
-        state.salesAll = allData.rows || [];
-      }
       renderGlobalSalesHeaderStats();
     }
 
@@ -814,7 +809,20 @@
     }
 
     async function loadSales() {
-      await refreshSalesFiltered();
+      const [filteredData, allData] = await Promise.all([
+        api(buildSalesQuery()),
+        state.salesAll ? Promise.resolve({ rows: state.salesAll }) : api('/sales?sort=date_desc')
+      ]);
+      state.sales = filteredData.rows || [];
+      state.salesAll = state.salesAll || allData.rows || [];
+      state.dashboard = { ...(state.dashboard || {}), sales: { totals: filteredData.totals || null, filter: filteredData.filter || null } };
+      salesSignature = `${state.sales.length}_${state.sales[0]?.orderId || ''}_${JSON.stringify(filteredData.filter || {})}`;
+      bucketMemo = new Map();
+      computeSalesStats();
+      renderSales();
+      renderFilteredSalesKpis(filteredData.totals || {});
+      syncSalesFilterUi(filteredData.filter || state.salesFilter);
+      renderGlobalSalesHeaderStats();
     }
     async function loadInventory() {
       const raw = await api('/inventory');
@@ -887,9 +895,11 @@
       setLoading();
       try {
         await Promise.all([loadMetrics(), loadSettings(), loadSales(), loadInventory()]);
-        renderDashboard();
-        renderSales();
-        $('syncState').textContent = 'Live-Daten';
+        requestAnimationFrame(() => {
+          renderDashboard();
+          renderSales();
+          $('syncState').textContent = 'Live-Daten';
+        });
       } catch (e) {
         $('syncState').textContent = 'Fehler beim Laden';
       }
@@ -908,7 +918,12 @@
     [...document.querySelectorAll('.sales-filter-chip')].forEach(chip => chip.onclick = async () => { document.querySelectorAll('.sales-filter-chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.salesFilter.range = chip.dataset.salesRange; if (chip.dataset.salesRange !== 'custom') { state.salesFilter.from = ''; state.salesFilter.to = ''; $('salesFrom').value = ''; $('salesTo').value = ''; } await loadSales(); });
     $('salesFrom').onchange = async (e) => { state.salesFilter.range = 'custom'; state.salesFilter.from = e.target.value || ''; await loadSales(); };
     $('salesTo').onchange = async (e) => { state.salesFilter.range = 'custom'; state.salesFilter.to = e.target.value || ''; await loadSales(); };
-    $('salesSearch').oninput = async (e) => { state.salesFilter.search = e.target.value || ''; await loadSales(); };
+    let salesSearchTimer = null;
+    $('salesSearch').oninput = (e) => {
+      state.salesFilter.search = e.target.value || '';
+      clearTimeout(salesSearchTimer);
+      salesSearchTimer = setTimeout(() => { loadSales(); }, 180);
+    };
     $('salesSort').onchange = async (e) => { state.salesFilter.sort = e.target.value || 'date_desc'; await loadSales(); };
     $('syncSkuDefaultsBtn').onclick = async () => { await api('/sales/sync-sku-defaults', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); await Promise.all([loadSales(), loadMetrics()]); renderDashboard(); };
     $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('saleModalSave').onclick = saveSaleModal; $('saleModalCancel').onclick = closeSaleModal; $('saleModalBackdrop').onclick = closeSaleModal; boot();

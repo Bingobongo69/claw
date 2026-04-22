@@ -371,8 +371,8 @@ app.get("/dashboard", async (req, res) => {
   try {
     const [salesData, metrics, inventoryData] = await Promise.all([
       callSheets({ action: "getSales" }),
-      fetch(`${req.protocol}://${req.get("host")}/metrics`).then((r) => r.json()),
-      callSheets({ action: "getInventory" })
+      callSheets({ action: "getInventory" }),
+      callSheets({ action: "getSettings" }).then(() => fetch(`${req.protocol}://${req.get("host")}/metrics`).then((r) => r.json()))
     ]);
     if (!salesData.ok) return res.status(500).json(salesData);
     const rows = normalizeSalesRows(salesData);

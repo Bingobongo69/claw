@@ -291,6 +291,7 @@ app.get("/reports/summary", async (req, res) => {
     let range = "today";
     if (period === "weekly") range = "7d";
     if (period === "monthly") range = null;
+    if (period === "yearly") range = null;
     const filtered = filterSalesRows(rows, {
       range,
       from: req.query.from,
@@ -301,6 +302,25 @@ app.get("/reports/summary", async (req, res) => {
     const topSeller = filtered.rows.slice().sort((a, b) => b.profit - a.profit)[0] || null;
     const forecast = calculateYearTargetLikelihood({ metrics, filteredTotals: filtered.totals, target: Number(req.query.target || 25000) });
     res.json({ ok: true, period, totals: filtered.totals, topSeller, forecast, rows: filtered.rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.post("/reports/log", async (req, res) => {
+  try {
+    const payload = {
+      period: req.body?.period || '',
+      from: req.body?.from || '',
+      to: req.body?.to || '',
+      revenue: Number(req.body?.revenue || 0),
+      profit: Number(req.body?.profit || 0),
+      roi: Number(req.body?.roi || 0),
+      topSeller: req.body?.topSeller || '',
+      targetLikelihood: req.body?.targetLikelihood || ''
+    };
+    const result = await callSheets({ action: 'appendReportLog', ...payload });
+    res.json(result);
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
   }

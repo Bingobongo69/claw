@@ -161,8 +161,18 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
   ];
 
   const message = summaryLines.join('\n');
+  const reportLogPayload = {
+    period,
+    from: report?.range?.start || '',
+    to: report?.range?.end || '',
+    revenue: Number(summary?.totals?.revenue || report?.totals?.revenue || 0),
+    profit: Number(summary?.totals?.profit || report?.totals?.profit || 0),
+    roi: Number(summary?.totals?.roi || report?.totals?.grossMargin || 0),
+    topSeller: topSeller ? (topSeller.title || topSeller.sku || '') : '',
+    targetLikelihood: `${probability.toFixed(1)}% (${probabilityLabel})`
+  };
   if (effectiveDryRun) {
-    return { ok: true, dryRun: true, message };
+    return { ok: true, dryRun: true, message, reportLogPayload };
   }
   const telegramUrl = `https://api.telegram.org/bot${token}/sendMessage`;
   const res = await fetch(telegramUrl, {
@@ -176,7 +186,23 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
   if (!res.ok || (parsed && parsed.ok === false)) {
     throw new Error(`Telegram send failed: ${bodyText}`);
   }
-  return { ok: true, dryRun: false, response: parsed, message };
+
+  try {
+    const logRes = await fetch(`${baseUrl.replace(/\/$/, '')}`, { method: 'GET' });
+    void logRes;
+  } catch {}
+
+  try {
+    await fetch(`${baseUrl.replace(/\/$/, '')}/reports/log`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reportLogPayload)
+    });
+  } catch (err) {
+    console.error('report log write failed:', err?.message || err);
+  }
+
+  return { ok: true, dryRun: false, response: parsed, message, reportLogPayload };
 }
 
 async function main() {

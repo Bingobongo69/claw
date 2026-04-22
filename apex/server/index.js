@@ -194,6 +194,7 @@ function filterSalesRows(rows, query = {}) {
     totals: {
       revenue: totals.revenue,
       profit: totals.profit,
+      cost: totals.cost,
       roi: totals.cost > 0 ? totals.profit / totals.cost : 0,
       count: filtered.length
     }

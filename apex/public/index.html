@@ -88,6 +88,8 @@
           <div style="text-align:right">
             <div class="subtitle">Gefilterte Marge</div>
             <div class="kpiVal" id="salesMarginKpi">-</div>
+            <div class="subtitle" style="margin-top:8px">EK → Gewinn</div>
+            <div style="font-weight:800;font-size:16px" id="salesEkProfitRatioKpi">-</div>
           </div>
         </div>
         <div class="stack" style="margin-top:12px">
@@ -289,6 +291,9 @@
       $('filteredRoiKpi').textContent = percent(totals.roi || 0);
       $('filteredCountKpi').textContent = String(totals.count || 0);
       $('salesMarginKpi').textContent = percent(totals.roi || 0);
+      const cost = Number(totals.cost || 0);
+      const profit = Number(totals.profit || 0);
+      $('salesEkProfitRatioKpi').textContent = cost > 0 ? `1 : ${(profit / cost).toFixed(2)}` : '-';
     }
 
     function toDateString(input) { if (!input) return ''; const d = new Date(input); if (!isNaN(d.getTime())) return d.toISOString().slice(0,10); const s = String(input).trim(); const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if (m) return new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00Z`).toISOString().slice(0,10); return s.slice(0,10); }

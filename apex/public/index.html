@@ -256,9 +256,31 @@
     async function refreshSalesFiltered() {
       const data = await api(buildSalesQuery());
       state.sales = data.rows || [];
-      state.dashboard = { totals: data.totals || null, filter: data.filter || null };
+      state.dashboard = { ...(state.dashboard || {}), sales: { totals: data.totals || null, filter: data.filter || null } };
+      salesSignature = `${state.sales.length}_${state.sales[0]?.orderId || ''}_${JSON.stringify(data.filter || {})}`;
+      bucketMemo = new Map();
+      computeSalesStats();
       renderSales();
       renderFilteredSalesKpis(data.totals || {});
+      syncSalesFilterUi(data.filter || state.salesFilter);
+    }
+
+    function syncSalesFilterUi(filter) {
+      if (!filter) return;
+      state.salesFilter = {
+        range: filter.range || state.salesFilter.range,
+        from: filter.from || state.salesFilter.from,
+        to: filter.to || state.salesFilter.to,
+        search: filter.search || '',
+        sort: filter.sort || state.salesFilter.sort || 'date_desc'
+      };
+      document.querySelectorAll('.sales-filter-chip').forEach((chip) => {
+        chip.classList.toggle('active', chip.dataset.salesRange === state.salesFilter.range);
+      });
+      $('salesFrom').value = state.salesFilter.from || '';
+      $('salesTo').value = state.salesFilter.to || '';
+      $('salesSearch').value = state.salesFilter.search || '';
+      $('salesSort').value = state.salesFilter.sort || 'date_desc';
     }
 
     function renderFilteredSalesKpis(totals) {
@@ -764,11 +786,7 @@
     }
 
     async function loadSales() {
-      const raw = await api('/sales');
-      state.sales = raw.rows || [];
-      salesSignature = `${state.sales.length}_${state.sales[0]?.orderId || ''}`;
-      bucketMemo = new Map();
-      computeSalesStats();
+      await refreshSalesFiltered();
     }
     async function loadInventory() {
       const raw = await api('/inventory');

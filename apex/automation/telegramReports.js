@@ -116,10 +116,11 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
 
   const lookbackDays = PERIODS[period].lookbackDays;
   const tz = process.env.REPORT_TIMEZONE || 'Europe/Berlin';
-  const [metrics, inventory, report] = await Promise.all([
+  const [metrics, inventory, report, summary] = await Promise.all([
     fetchJson(baseUrl, '/metrics'),
     fetchJson(baseUrl, '/inventory'),
-    fetchJson(baseUrl, `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}`)
+    fetchJson(baseUrl, `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}`),
+    fetchJson(baseUrl, `/reports/summary?period=${encodeURIComponent(period)}&target=${encodeURIComponent(process.env.REVENUE_TARGET || '25000')}`)
   ]);
 
   const inventoryTotals = sumInventory(inventory);
@@ -132,12 +133,18 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
   const progressPct = target > 0 ? (totalRevenue / target) * 100 : 0;
   const progressBar = buildProgressBar(Math.min(100, progressPct));
 
+  const probability = summary?.forecast?.probability || 0;
+  const probabilityLabel = summary?.forecast?.label || 'unbekannt';
+  const projectedMonthRevenue = summary?.forecast?.projectedMonthRevenue || 0;
+  const topSeller = summary?.topSeller;
+
   const summaryLines = [
     `📊 ${PERIODS[period].label}`,
     report.range ? `Zeitraum: ${formatRange(report.range)}` : `Zeitraum: letzte ${lookbackDays} Tage`,
-    `Bestellmenge: ${report.totals?.orders || 0}`,
-    `Umsatz: ${formatEuro(report.totals?.revenue || 0)}`,
-    `Gewinn: ${formatEuro(report.totals?.profit || 0)} (${formatPercent(report.totals?.grossMargin ? report.totals.grossMargin * 100 : 0)})`,
+    `Bestellmenge: ${report.totals?.orders || summary?.totals?.count || 0}`,
+    `Umsatz: ${formatEuro(summary?.totals?.revenue ?? report.totals?.revenue || 0)}`,
+    `Gewinn: ${formatEuro(summary?.totals?.profit ?? report.totals?.profit || 0)} (${formatPercent((summary?.totals?.roi || report.totals?.grossMargin || 0) * 100)})`,
+    topSeller ? `Top-Seller: ${topSeller.title || topSeller.sku || '-'} (${formatEuro(topSeller.profit || 0)} Gewinn)` : 'Top-Seller: -',
     '',
     '📦 Lager',
     `Einstellwert: ${formatEuro(inventoryTotals.listTotal)}`,
@@ -147,6 +154,8 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
     `Gesamtumsatz: ${formatEuro(totalRevenue)}`,
     `Gesamtgewinn: ${formatEuro(totalProfit)}`,
     `Fortschritt 25k-Ziel: ${progressBar}`,
+    `Jahresziel-Wahrscheinlichkeit: ${probability.toFixed(1)}% (${probabilityLabel})`,
+    `Monats-Hochrechnung: ${formatEuro(projectedMonthRevenue)}`,
     '',
     `🧭 Plan: ${planText}`
   ];

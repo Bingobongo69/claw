@@ -126,6 +126,8 @@ function normalizeSalesRows(data) {
   const iSku = idx["SKU"] ?? idx["Sku"] ?? idx["Artikelnummer"] ?? idx["Artikel-Nr"] ?? 2;
   const iCost = idx["EK"] ?? idx["Einkauf"] ?? idx["Einkaufspreis"] ?? idx["Einkaufswert"] ?? idx["Kosten"];
   const iListing = idx["Einstellwert"] ?? idx["ListPrice"] ?? idx["Listing"];
+  const iStatus = idx["Status"];
+  const iRoi = idx["ROI %"] ?? idx["ROI%"] ?? idx["ROI"];
   return (data.rows || [])
     .filter((r) => String(r[iOrder] ?? "").trim() !== "")
     .map((r) => ({
@@ -138,9 +140,78 @@ function normalizeSalesRows(data) {
       orderId: String(r[iOrder] ?? "").trim(),
       sku: String(r[iSku] ?? "").trim(),
       cost: Number(String(iCost !== undefined ? r[iCost] ?? "0" : "0").replace(",", ".")) || 0,
-      listingValue: Number(String(iListing !== undefined ? r[iListing] ?? "0" : "0").replace(",", ".")) || 0
+      listingValue: Number(String(iListing !== undefined ? r[iListing] ?? "0" : "0").replace(",", ".")) || 0,
+      status: iStatus !== undefined ? String(r[iStatus] ?? "") : "",
+      roi: Number(String(iRoi !== undefined ? r[iRoi] ?? "0" : "0").replace(",", ".")) || 0
     }))
     .sort((a, b) => normalizeDateString(b.date).localeCompare(normalizeDateString(a.date)));
+}
+
+function filterSalesRows(rows, query = {}) {
+  const now = new Date();
+  const todayIso = normalizeDateString(now);
+  let from = query.from ? normalizeDateString(query.from) : null;
+  let to = query.to ? normalizeDateString(query.to) : null;
+  if (query.range === "today") {
+    from = todayIso;
+    to = todayIso;
+  } else if (query.range === "7d") {
+    const start = new Date(now);
+    start.setUTCDate(start.getUTCDate() - 6);
+    from = normalizeDateString(start);
+    to = todayIso;
+  }
+  const search = String(query.search || "").trim().toLowerCase();
+  const sort = String(query.sort || "date_desc");
+  const filtered = rows.filter((row) => {
+    const ds = normalizeDateString(row.date);
+    if (from && ds < from) return false;
+    if (to && ds > to) return false;
+    if (search) {
+      const hay = `${String(row.title || "")} ${String(row.sku || "")}`.toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+  const comparators = {
+    price_desc: (a, b) => b.vk - a.vk,
+    price_asc: (a, b) => a.vk - b.vk,
+    profit_desc: (a, b) => b.profit - a.profit,
+    profit_asc: (a, b) => a.profit - b.profit,
+    date_asc: (a, b) => normalizeDateString(a.date).localeCompare(normalizeDateString(b.date)),
+    date_desc: (a, b) => normalizeDateString(b.date).localeCompare(normalizeDateString(a.date))
+  };
+  filtered.sort(comparators[sort] || comparators.date_desc);
+  const totals = filtered.reduce((acc, row) => {
+    acc.revenue += row.vk || 0;
+    acc.profit += row.profit || 0;
+    acc.cost += row.cost || 0;
+    return acc;
+  }, { revenue: 0, profit: 0, cost: 0 });
+  return {
+    rows: filtered,
+    filter: { from, to, range: query.range || null, search, sort },
+    totals: {
+      revenue: totals.revenue,
+      profit: totals.profit,
+      roi: totals.cost > 0 ? totals.profit / totals.cost : 0,
+      count: filtered.length
+    }
+  };
+}
+
+function calculateYearTargetLikelihood({ metrics, filteredTotals, target = 25000 }) {
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const nextMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const daysElapsed = Math.max(1, Math.ceil((now - monthStart) / 86400000));
+  const daysInMonth = Math.max(1, Math.ceil((nextMonthStart - monthStart) / 86400000));
+  const currentMonthRevenue = Number(metrics?.monthRevenue || filteredTotals?.revenue || 0);
+  const projectedMonthRevenue = (currentMonthRevenue / daysElapsed) * daysInMonth;
+  const annualRunRate = projectedMonthRevenue * 12;
+  const probability = Math.max(0, Math.min(100, (annualRunRate / target) * 100));
+  const label = probability >= 110 ? "sehr hoch" : probability >= 90 ? "gut" : probability >= 70 ? "mittel" : "niedrig";
+  return { probability, label, projectedMonthRevenue, annualRunRate, target };
 }
 
 app.get("/health", (req, res) => res.json({ ok: true }));
@@ -209,14 +280,67 @@ app.post("/sourcing/check", async (req, res) => {
   } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
 
+app.get("/reports/summary", async (req, res) => {
+  try {
+    const period = String(req.query.period || "monthly");
+    const [metrics, salesData] = await Promise.all([
+      fetch(`${req.protocol}://${req.get("host")}/metrics`).then((r) => r.json()),
+      callSheets({ action: "getSales" })
+    ]);
+    const rows = normalizeSalesRows(salesData);
+    let range = "today";
+    if (period === "weekly") range = "7d";
+    if (period === "monthly") range = null;
+    const filtered = filterSalesRows(rows, {
+      range,
+      from: req.query.from,
+      to: req.query.to,
+      search: req.query.search,
+      sort: req.query.sort
+    });
+    const topSeller = filtered.rows.slice().sort((a, b) => b.profit - a.profit)[0] || null;
+    const forecast = calculateYearTargetLikelihood({ metrics, filteredTotals: filtered.totals, target: Number(req.query.target || 25000) });
+    res.json({ ok: true, period, totals: filtered.totals, topSeller, forecast, rows: filtered.rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
 app.get("/sales", async (req, res) => {
   try {
     const data = await callSheets({ action: "getSales" });
     if (!data.ok) return res.status(500).json(data);
     const rows = normalizeSalesRows(data);
     handleSalesAlerts(rows);
-    res.json({ ok: true, rows });
+    const filtered = filterSalesRows(rows, req.query || {});
+    res.json({ ok: true, rows: filtered.rows, totals: filtered.totals, filter: filtered.filter });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); }
+});
+
+app.post("/sales/sync-sku-defaults", async (req, res) => {
+  try {
+    const result = await callSheets({ action: "syncSkuDefaults" });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.get("/dashboard", async (req, res) => {
+  try {
+    const [salesData, metrics] = await Promise.all([
+      callSheets({ action: "getSales" }),
+      fetch(`${req.protocol}://${req.get("host")}/metrics`).then((r) => r.json())
+    ]);
+    if (!salesData.ok) return res.status(500).json(salesData);
+    const rows = normalizeSalesRows(salesData);
+    const filtered = filterSalesRows(rows, req.query || {});
+    const forecast = calculateYearTargetLikelihood({ metrics, filteredTotals: filtered.totals, target: Number(req.query.target || 25000) });
+    const topSeller = filtered.rows.slice().sort((a, b) => b.profit - a.profit)[0] || null;
+    res.json({ ok: true, rows: filtered.rows, totals: filtered.totals, filter: filtered.filter, topSeller, forecast });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
 });
 
 app.post("/sales/update", async (req, res) => {

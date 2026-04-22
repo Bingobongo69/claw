@@ -83,12 +83,54 @@
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
           <div>
             <div class="title" style="font-size:16px">Verkäufe</div>
-            <div class="subtitle">Nur valide Order-IDs</div>
+            <div class="subtitle">Filterbar, suchbar, sortierbar</div>
           </div>
           <div style="text-align:right">
-            <div class="subtitle">Gesamtmarge</div>
+            <div class="subtitle">Gefilterte Marge</div>
             <div class="kpiVal" id="salesMarginKpi">-</div>
           </div>
+        </div>
+        <div class="stack" style="margin-top:12px">
+          <div class="chipRow">
+            <button class="chip active sales-filter-chip" data-sales-range="today">Heute</button>
+            <button class="chip sales-filter-chip" data-sales-range="7d">7 Tage</button>
+            <button class="chip sales-filter-chip" data-sales-range="custom">Kalender</button>
+          </div>
+          <div class="row">
+            <div>
+              <label>Von</label>
+              <input type="date" id="salesFrom" />
+            </div>
+            <div>
+              <label>Bis</label>
+              <input type="date" id="salesTo" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Suche Titel / SKU</label>
+              <input id="salesSearch" placeholder="z. B. iPhone oder SKU" />
+            </div>
+            <div>
+              <label>Sortierung</label>
+              <select id="salesSort" style="width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)">
+                <option value="date_desc">Neueste</option>
+                <option value="price_desc">VK höchster</option>
+                <option value="price_asc">VK niedrigster</option>
+                <option value="profit_desc">Gewinn höchster</option>
+                <option value="profit_asc">Gewinn niedrigster</option>
+              </select>
+            </div>
+          </div>
+          <button id="syncSkuDefaultsBtn">Leere EK/Versand aus SKU auffüllen</button>
+        </div>
+      </div>
+      <div class="glass card" style="margin-bottom:12px">
+        <div class="miniGrid">
+          <div class="miniCard"><div class="subtitle">Gefilterter Umsatz</div><div class="miniVal" id="filteredRevenueKpi">-</div></div>
+          <div class="miniCard"><div class="subtitle">Gefilterter Gewinn</div><div class="miniVal" id="filteredProfitKpi">-</div></div>
+          <div class="miniCard"><div class="subtitle">Gefilterter ROI</div><div class="miniVal" id="filteredRoiKpi">-</div></div>
+          <div class="miniCard"><div class="subtitle">Einträge</div><div class="miniVal" id="filteredCountKpi">-</div></div>
         </div>
       </div>
       <div class="list" id="salesList"></div>
@@ -151,6 +193,15 @@
         <input type="number" step="0.01" id="modalFeePct" />
       </div>
       <div>
+        <label>Status</label>
+        <select id="modalStatus" style="width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)">
+          <option value="Offen">Offen</option>
+          <option value="Bezahlt">Bezahlt</option>
+          <option value="Versendet">Versendet</option>
+          <option value="Retoure">Retoure</option>
+        </select>
+      </div>
+      <div>
         <label>Einstellwert (€)</label>
         <input type="number" step="0.01" id="modalListingValue" />
       </div>
@@ -164,7 +215,7 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const state = { metrics:null, sales:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7 };
+    const state = { metrics:null, sales:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7, salesFilter:{ range:'7d', from:'', to:'', search:'', sort:'date_desc' }, dashboard:null };
     let bucketMemo = new Map();
     let salesSignature = '';
     let salesStats = {};
@@ -189,6 +240,34 @@
     })();
     async function api(url, opts) { const res = await fetch(url, opts); if (!res.ok) throw new Error(await res.text()); return res.json(); }
     const euro = (v) => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(v||0));
+    const percent = (v) => `${(Number(v || 0) * 100).toFixed(1)}%`;
+
+    function buildSalesQuery() {
+      const params = new URLSearchParams();
+      const filter = state.salesFilter;
+      if (filter.range) params.set('range', filter.range);
+      if (filter.from) params.set('from', filter.from);
+      if (filter.to) params.set('to', filter.to);
+      if (filter.search) params.set('search', filter.search);
+      if (filter.sort) params.set('sort', filter.sort);
+      return `/sales?${params.toString()}`;
+    }
+
+    async function refreshSalesFiltered() {
+      const data = await api(buildSalesQuery());
+      state.sales = data.rows || [];
+      state.dashboard = { totals: data.totals || null, filter: data.filter || null };
+      renderSales();
+      renderFilteredSalesKpis(data.totals || {});
+    }
+
+    function renderFilteredSalesKpis(totals) {
+      $('filteredRevenueKpi').textContent = euro(totals.revenue || 0);
+      $('filteredProfitKpi').textContent = euro(totals.profit || 0);
+      $('filteredRoiKpi').textContent = percent(totals.roi || 0);
+      $('filteredCountKpi').textContent = String(totals.count || 0);
+      $('salesMarginKpi').textContent = percent(totals.roi || 0);
+    }
 
     function toDateString(input) { if (!input) return ''; const d = new Date(input); if (!isNaN(d.getTime())) return d.toISOString().slice(0,10); const s = String(input).trim(); const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if (m) return new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00Z`).toISOString().slice(0,10); return s.slice(0,10); }
 
@@ -564,11 +643,6 @@
 
     function renderSales() {
       const rows = state.sales || [];
-      const totalRevenue = rows.reduce((sum, r) => sum + Number(r.vk || 0), 0);
-      const totalProfit = rows.reduce((sum, r) => sum + Number(r.profit || 0), 0);
-      const marginPct = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-      const kpi = $('salesMarginKpi');
-      if (kpi) kpi.textContent = totalRevenue > 0 ? `${marginPct.toFixed(1)}%` : '-';
       if (!rows.length) {
         $('salesList').innerHTML = '<div class="glass sale">Keine gültigen Verkäufe.</div>';
         return;
@@ -576,8 +650,9 @@
       $('salesList').innerHTML = rows.map(r => {
         const cost = Number(r.cost || 0);
         const marginEuro = Number(r.vk || 0) - cost;
-        const roi = cost > 0 ? (Number(r.profit || 0) / cost) * 100 : (Number(r.vk || 0) > 0 ? (Number(r.profit || 0) / Number(r.vk || 0)) * 100 : 0);
+        const roi = Number(r.roi || (cost > 0 ? (Number(r.profit || 0) / cost) : 0));
         const feePct = Number(r.vk || 0) > 0 ? (Number(r.fees || 0) / Number(r.vk || 0)) * 100 : 0;
+        const status = r.status || 'Offen';
         return `<div class="glass sale" data-sale-row="${r.orderId}">
           <div class="saleTop">
             <div>
@@ -585,10 +660,10 @@
               <div class="saleRevenue">${euro(r.vk)}</div>
               <div class="saleProfit ${Number(r.profit) >= 0 ? 'profitPos' : 'profitNeg'}">Gewinn: ${euro(r.profit)}</div>
             </div>
-            <div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}</div>
+            <div class="saleMeta">${toDateString(r.date)}<br>${r.orderId || '-'}<br><span class="badge ${String(status).toLowerCase()==='retoure'?'high':'low'}">${status}</span></div>
           </div>
-          <div class="costRow"><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)} (${feePct.toFixed(1)}%)</span></div>
-          <div class="costRow"><span>Marge: ${euro(marginEuro)}</span><span>ROI: ${roi.toFixed(1)}%</span></div>
+          <div class="costRow"><span>SKU: ${r.sku || '-'}</span><span>Versand: ${euro(r.shippingCost)}</span><span>Gebühren: ${euro(r.fees)} (${feePct.toFixed(1)}%)</span></div>
+          <div class="costRow"><span>Marge: ${euro(marginEuro)}</span><span>ROI: ${percent(roi)}</span></div>
         </div>`;
       }).join('');
       document.querySelectorAll('[data-sale-row]').forEach((el) => {
@@ -652,6 +727,7 @@
       const feePct = Number(sale.vk || 0) > 0 ? (Number(sale.fees || 0) / Number(sale.vk || 0)) * 100 : 0;
       $('modalFeePct').value = feePct.toFixed(2);
       $('modalListingValue').value = Number(sale.listingValue || sale.vk || 0).toFixed(2);
+      $('modalStatus').value = sale.status || 'Offen';
       $('saleModalStatus').textContent = '';
       $('saleModalBackdrop').classList.add('show');
       $('saleModal').classList.add('show');
@@ -669,12 +745,13 @@
       const shipping = Number($('modalShipping').value || 0);
       const feePct = Number($('modalFeePct').value || 0);
       const listingValue = Number($('modalListingValue').value || 0);
+      const status = $('modalStatus').value || 'Offen';
       $('saleModalStatus').textContent = 'Speichere…';
       try {
         await api('/sales/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: saleModalState.orderId, purchaseCost, shippingCost: shipping, feePct, listingValue })
+          body: JSON.stringify({ orderId: saleModalState.orderId, purchaseCost, shippingCost: shipping, feePct, listingValue, status })
         });
         await Promise.all([loadSales(), loadMetrics()]);
         renderSales();
@@ -781,7 +858,13 @@
         renderInventoryList();
       }
     });
-    [...document.querySelectorAll('.chip')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
+    [...document.querySelectorAll('.chip[data-range]')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip[data-range]').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
+    [...document.querySelectorAll('.sales-filter-chip')].forEach(chip => chip.onclick = async () => { document.querySelectorAll('.sales-filter-chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.salesFilter.range = chip.dataset.salesRange; if (chip.dataset.salesRange !== 'custom') { state.salesFilter.from = ''; state.salesFilter.to = ''; $('salesFrom').value = ''; $('salesTo').value = ''; } await loadSales(); });
+    $('salesFrom').onchange = async (e) => { state.salesFilter.range = 'custom'; state.salesFilter.from = e.target.value || ''; await loadSales(); };
+    $('salesTo').onchange = async (e) => { state.salesFilter.range = 'custom'; state.salesFilter.to = e.target.value || ''; await loadSales(); };
+    $('salesSearch').oninput = async (e) => { state.salesFilter.search = e.target.value || ''; await loadSales(); };
+    $('salesSort').onchange = async (e) => { state.salesFilter.sort = e.target.value || 'date_desc'; await loadSales(); };
+    $('syncSkuDefaultsBtn').onclick = async () => { await api('/sales/sync-sku-defaults', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); await Promise.all([loadSales(), loadMetrics()]); renderDashboard(); };
     $('openSidebar').onclick = () => toggleSidebar(true); $('closeSidebar').onclick = () => toggleSidebar(false); $('backdrop').onclick = () => toggleSidebar(false); $('saveAll').onclick = saveAll; $('saleModalSave').onclick = saveSaleModal; $('saleModalCancel').onclick = closeSaleModal; $('saleModalBackdrop').onclick = closeSaleModal; boot();
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {

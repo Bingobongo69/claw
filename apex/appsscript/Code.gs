@@ -79,6 +79,8 @@ function doPost(e) {
       ensureFeesSheet_();
       ensureSettingsSheet_();
       ensureTodosSheet_();
+      ensureSalesSheetConfig_();
+      ensureReportsSheet_();
       return _json({ ok: true });
     }
 
@@ -149,9 +151,24 @@ function doPost(e) {
         shippingCost: body.shippingCost,
         purchaseCost: body.purchaseCost,
         feePct: body.feePct,
-        listingValue: body.listingValue
+        listingValue: body.listingValue,
+        status: body.status
       });
       return _json(result);
+    }
+
+    if (action === "syncSkuDefaults") {
+      var syncResult = syncSkuDefaults_(body || {});
+      return _json(syncResult);
+    }
+
+    if (action === "computeReport") {
+      return _json(computeReport_(body || {}));
+    }
+
+    if (action === "appendReportLog") {
+      appendReportLog_(body || {});
+      return _json({ ok: true });
     }
 
     return _json({ ok: false, error: "unknown_action", action: action });
@@ -193,6 +210,50 @@ function ensureTodosSheet_() {
   if (!sheet) {
     sheet = ss.insertSheet("Todos");
     sheet.getRange(1,1,1,5).setValues([["CreatedAt","Title","Status","Owner","Note"]]);
+  }
+  return sheet;
+}
+
+function ensureReportsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Reports");
+  if (!sheet) {
+    sheet = ss.insertSheet("Reports");
+    sheet.getRange(1,1,1,9).setValues([["CreatedAt","Period","From","To","Revenue","Profit","ROI","TopSeller","TargetLikelihood"]]);
+  }
+  return sheet;
+}
+
+function ensureSalesSheetConfig_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Verkäufe");
+  if (!sheet) return null;
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < 12) return sheet;
+  var header = sheet.getRange(1,1,1,lastCol).getValues()[0];
+  var statusCol = findHeaderIndex_(header, ["Status"]);
+  var profitCol = findHeaderIndex_(header, ["Gewinn", "Profit"]);
+  var costCol = findHeaderIndex_(header, ["EK", "EK-Gesamt", "Einkauf", "Einkaufspreis", "Einkaufswert", "Kosten"]);
+  var shippingCol = findHeaderIndex_(header, ["Versand", "Versandkosten", "Shipping"]);
+  var roiCol = findHeaderIndex_(header, ["ROI %", "ROI%", "ROI"]);
+  if (sheet.getLastRow() >= 2) {
+    if (statusCol !== -1) {
+      var statusRange = sheet.getRange(2, statusCol + 1, Math.max(sheet.getLastRow() - 1, 1), 1);
+      var rule = SpreadsheetApp.newDataValidation().requireValueInList(["Offen", "Bezahlt", "Versendet", "Retoure"], true).setAllowInvalid(true).build();
+      statusRange.setDataValidation(rule);
+    }
+    if (profitCol !== -1 && costCol !== -1 && shippingCol !== -1) {
+      for (var row = 2; row <= sheet.getLastRow(); row++) {
+        var formula = '=IF($' + columnToLetter_(statusCol + 1) + row + '="Retoure",0-$' + columnToLetter_(costCol + 1) + row + '-$' + columnToLetter_(shippingCol + 1) + row + ',' + columnToLetter_(profitCol + 1) + row + ')';
+        // do not write formula into profit cell here because app/backend may write direct values
+      }
+    }
+    if (roiCol !== -1 && costCol !== -1) {
+      for (var row2 = 2; row2 <= sheet.getLastRow(); row2++) {
+        var roiFormula = '=IFERROR(ROUND(' + columnToLetter_(profitCol + 1) + row2 + '/' + columnToLetter_(costCol + 1) + row2 + ';4),0)';
+        sheet.getRange(row2, roiCol + 1).setFormula(roiFormula);
+      }
+    }
   }
   return sheet;
 }
@@ -257,38 +318,52 @@ function updateSaleRow_(orderId, payload) {
   var updates = [];
   var rowValues = rows[targetRow - 2];
   var shippingCol = findHeaderIndex_(header, ["Versand", "Versandkosten", "Shipping"]);
+  var costCol = findHeaderIndex_(header, ["EK", "EK-Gesamt", "Einkauf", "Einkaufspreis", "Einkaufswert", "Kosten"]);
+  var revenueCol = findHeaderIndex_(header, ["VK", "Umsatz", "Verkaufspreis"]);
+  var feeAmountCol = findHeaderIndex_(header, ["Gebühr", "Gebühren", "Fee", "Fees"]);
+  var listingCol = findHeaderIndex_(header, ["Einstellwert","Listenpreis","ListPrice","Listing"]);
+  var profitCol = findHeaderIndex_(header, ["Gewinn", "Profit"]);
+  var statusCol = findHeaderIndex_(header, ["Status"]);
+  var roiCol = findHeaderIndex_(header, ["ROI %", "ROI%", "ROI"]);
+
   if (shippingCol !== -1 && payload.shippingCost !== undefined && payload.shippingCost !== null) {
     updates.push({ col: shippingCol + 1, value: Number(payload.shippingCost) });
   }
-  var costCol = findHeaderIndex_(header, ["EK", "EK-Gesamt", "Einkauf", "Einkaufspreis", "Einkaufswert", "Kosten"]);
   if (costCol !== -1 && payload.purchaseCost !== undefined && payload.purchaseCost !== null) {
     updates.push({ col: costCol + 1, value: Number(payload.purchaseCost) });
   }
-  var revenueCol = findHeaderIndex_(header, ["VK", "Umsatz", "Verkaufspreis"]);
-  var revenue = revenueCol !== -1 ? Number(rowValues[revenueCol] || 0) : 0;
-  var feeAmountCol = findHeaderIndex_(header, ["Gebühr", "Gebühren", "Fee", "Fees"]);
-  if (payload.feePct !== undefined && payload.feePct !== null && feeAmountCol !== -1) {
-    var feeAmount = revenue > 0 ? (revenue * Number(payload.feePct) / 100) : 0;
-    updates.push({ col: feeAmountCol + 1, value: feeAmount });
-  }
-  var listingCol = findHeaderIndex_(header, ["Einstellwert","Listenpreis","ListPrice","Listing"]);
   if (listingCol !== -1 && payload.listingValue !== undefined && payload.listingValue !== null) {
     updates.push({ col: listingCol + 1, value: Number(payload.listingValue) });
   }
+  if (statusCol !== -1 && payload.status !== undefined && payload.status !== null) {
+    updates.push({ col: statusCol + 1, value: String(payload.status) });
+  }
 
-  var profitCol = findHeaderIndex_(header, ["Gewinn", "Profit"]);
+  var revenue = revenueCol !== -1 ? Number(rowValues[revenueCol] || 0) : 0;
+  var feeAmount = payload.feePct !== undefined && payload.feePct !== null && feeAmountCol !== -1
+    ? (revenue > 0 ? (revenue * Number(payload.feePct) / 100) : 0)
+    : Number(feeAmountCol !== -1 ? rowValues[feeAmountCol] || 0 : 0);
+  if (payload.feePct !== undefined && payload.feePct !== null && feeAmountCol !== -1) {
+    updates.push({ col: feeAmountCol + 1, value: feeAmount });
+  }
+
+  var cost = payload.purchaseCost !== undefined && payload.purchaseCost !== null
+    ? Number(payload.purchaseCost)
+    : Number(costCol !== -1 ? rowValues[costCol] || 0 : 0);
+  var shipping = payload.shippingCost !== undefined && payload.shippingCost !== null
+    ? Number(payload.shippingCost)
+    : Number(shippingCol !== -1 ? rowValues[shippingCol] || 0 : 0);
+  var status = payload.status !== undefined && payload.status !== null
+    ? String(payload.status)
+    : String(statusCol !== -1 ? rowValues[statusCol] || "" : "");
+  var profit = status.toLowerCase() === "retoure"
+    ? (0 - cost - shipping)
+    : (revenue - cost - shipping - feeAmount);
   if (profitCol !== -1) {
-    var cost = payload.purchaseCost !== undefined && payload.purchaseCost !== null
-      ? Number(payload.purchaseCost)
-      : Number(costCol !== -1 ? rowValues[costCol] || 0 : 0);
-    var shipping = payload.shippingCost !== undefined && payload.shippingCost !== null
-      ? Number(payload.shippingCost)
-      : Number(shippingCol !== -1 ? rowValues[shippingCol] || 0 : 0);
-    var fees = payload.feePct !== undefined && payload.feePct !== null
-      ? (revenue > 0 ? (revenue * Number(payload.feePct) / 100) : 0)
-      : Number(feeAmountCol !== -1 ? rowValues[feeAmountCol] || 0 : 0);
-    var profit = revenue - cost - shipping - fees;
     updates.push({ col: profitCol + 1, value: profit });
+  }
+  if (roiCol !== -1) {
+    updates.push({ col: roiCol + 1, value: cost > 0 ? Math.round((profit / cost) * 10000) / 10000 : 0 });
   }
 
   if (!updates.length) return { ok: false, error: "no_matching_columns", header: header };
@@ -297,7 +372,129 @@ function updateSaleRow_(orderId, payload) {
     sheet.getRange(targetRow, update.col).setValue(update.value);
   });
 
-  return { ok: true, updated: updates.length };
+  return { ok: true, updated: updates.length, profit: profit, roi: cost > 0 ? Math.round((profit / cost) * 10000) / 10000 : 0 };
+}
+
+function syncSkuDefaults_(options) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Verkäufe");
+  if (!sheet) return { ok: false, error: "sheet_not_found" };
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2) return { ok: true, updated: 0 };
+  var header = sheet.getRange(1,1,1,lastCol).getValues()[0];
+  var rows = sheet.getRange(2,1,lastRow-1,lastCol).getValues();
+  var skuCol = findHeaderIndex_(header, ["SKU", "Sku"]);
+  var costCol = findHeaderIndex_(header, ["EK", "EK-Gesamt", "Einkauf", "Einkaufspreis", "Einkaufswert", "Kosten"]);
+  var shippingCol = findHeaderIndex_(header, ["Versand", "Versandkosten", "Shipping"]);
+  if (skuCol === -1 || costCol === -1 || shippingCol === -1) return { ok: false, error: "required_columns_missing" };
+  var updated = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var sku = String(rows[i][skuCol] || "").trim();
+    if (!sku) continue;
+    var parsed = parseSkuDefaults_(sku);
+    if (!parsed) continue;
+    var rowNumber = i + 2;
+    var currentCost = rows[i][costCol];
+    var currentShipping = rows[i][shippingCol];
+    if ((currentCost === "" || currentCost === null) && parsed.purchaseCost !== null) {
+      sheet.getRange(rowNumber, costCol + 1).setValue(parsed.purchaseCost);
+      updated++;
+    }
+    if ((currentShipping === "" || currentShipping === null) && parsed.shippingCost !== null) {
+      sheet.getRange(rowNumber, shippingCol + 1).setValue(parsed.shippingCost);
+      updated++;
+    }
+  }
+  ensureSalesSheetConfig_();
+  return { ok: true, updated: updated };
+}
+
+function parseSkuDefaults_(sku) {
+  var out = { purchaseCost: null, shippingCost: null };
+  var costMatch = String(sku).match(/(?:^|_)EK([0-9]+(?:[\.,][0-9]+)?)(?:_|$)/i);
+  if (costMatch) out.purchaseCost = Number(String(costMatch[1]).replace(',', '.'));
+  var shippingMatch = String(sku).match(/(?:^|_)(?:VS|SHIP|VERSAND|VK)([0-9]+(?:[\.,][0-9]+)?)(?:_|$)/i);
+  if (shippingMatch) out.shippingCost = Number(String(shippingMatch[1]).replace(',', '.'));
+  if (out.purchaseCost === null && out.shippingCost === null) return null;
+  return out;
+}
+
+function computeReport_(options) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Verkäufe");
+  if (!sheet) return { ok: false, error: "sheet_not_found" };
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2) return { ok: true, rows: [], kpis: { revenue: 0, profit: 0, roi: 0 }, topSeller: null };
+  var header = sheet.getRange(1,1,1,lastCol).getValues()[0];
+  var rows = sheet.getRange(2,1,lastRow-1,lastCol).getValues();
+  var idx = {
+    date: findHeaderIndex_(header, ["Datum", "Date"]),
+    title: findHeaderIndex_(header, ["Titel", "Title"]),
+    sku: findHeaderIndex_(header, ["SKU", "Sku"]),
+    revenue: findHeaderIndex_(header, ["VK", "Umsatz", "Verkaufspreis"]),
+    profit: findHeaderIndex_(header, ["Gewinn", "Profit"]),
+    cost: findHeaderIndex_(header, ["EK", "EK-Gesamt", "Einkauf", "Einkaufspreis", "Einkaufswert", "Kosten"]),
+    roi: findHeaderIndex_(header, ["ROI %", "ROI%", "ROI"]),
+    status: findHeaderIndex_(header, ["Status"])
+  };
+  var from = options.from ? normalizeDateValue_(options.from) : null;
+  var to = options.to ? normalizeDateValue_(options.to) : null;
+  var filtered = [];
+  var revenue = 0;
+  var profit = 0;
+  var cost = 0;
+  var sellers = {};
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var dateValue = idx.date !== -1 ? normalizeDateValue_(row[idx.date]) : null;
+    if (from && dateValue && dateValue < from) continue;
+    if (to && dateValue && dateValue > to) continue;
+    filtered.push(row);
+    var rowRevenue = idx.revenue !== -1 ? Number(row[idx.revenue] || 0) : 0;
+    var rowProfit = idx.profit !== -1 ? Number(row[idx.profit] || 0) : 0;
+    var rowCost = idx.cost !== -1 ? Number(row[idx.cost] || 0) : 0;
+    revenue += rowRevenue;
+    profit += rowProfit;
+    cost += rowCost;
+    var sellerKey = idx.title !== -1 ? String(row[idx.title] || row[idx.sku] || 'Unbekannt') : String(row[idx.sku] || 'Unbekannt');
+    if (!sellers[sellerKey]) sellers[sellerKey] = { key: sellerKey, revenue: 0, profit: 0, count: 0 };
+    sellers[sellerKey].revenue += rowRevenue;
+    sellers[sellerKey].profit += rowProfit;
+    sellers[sellerKey].count += 1;
+  }
+  var topSeller = null;
+  for (var key in sellers) {
+    if (!topSeller || sellers[key].profit > topSeller.profit) topSeller = sellers[key];
+  }
+  return {
+    ok: true,
+    rowCount: filtered.length,
+    kpis: {
+      revenue: revenue,
+      profit: profit,
+      roi: cost > 0 ? Math.round((profit / cost) * 10000) / 10000 : 0
+    },
+    topSeller: topSeller,
+    from: from,
+    to: to
+  };
+}
+
+function appendReportLog_(payload) {
+  var sheet = ensureReportsSheet_();
+  sheet.appendRow([
+    new Date().toISOString(),
+    payload.period || '',
+    payload.from || '',
+    payload.to || '',
+    payload.revenue || 0,
+    payload.profit || 0,
+    payload.roi || 0,
+    payload.topSeller || '',
+    payload.targetLikelihood || ''
+  ]);
 }
 
 function findHeaderIndex_(header, names) {
@@ -324,6 +521,26 @@ function upsertSetting_(key, value, type, note) {
   var values = [[key, value, type || "string", note || ""]];
   if (rowIndex === -1) sheet.appendRow(values[0]);
   else sheet.getRange(rowIndex,1,1,4).setValues(values);
+}
+
+function normalizeDateValue_(value) {
+  if (!value) return '';
+  var d = new Date(value);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+  var s = String(value).trim();
+  var m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return new Date(m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) + 'T00:00:00Z').toISOString().slice(0,10);
+  return s.slice(0,10);
+}
+
+function columnToLetter_(column) {
+  var temp, letter = '';
+  while (column > 0) {
+    temp = (column - 1) % 26;
+    letter = String.fromCharCode(temp + 65) + letter;
+    column = (column - temp - 1) / 26;
+  }
+  return letter;
 }
 
 function _json(obj) {

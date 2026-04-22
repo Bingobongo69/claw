@@ -265,6 +265,11 @@
       renderSales();
       renderFilteredSalesKpis(data.totals || {});
       syncSalesFilterUi(data.filter || state.salesFilter);
+      if (!state.salesAll) {
+        const allData = await api('/sales?sort=date_desc');
+        state.salesAll = allData.rows || [];
+      }
+      renderGlobalSalesHeaderStats();
     }
 
     function syncSalesFilterUi(filter) {
@@ -291,9 +296,17 @@
       $('filteredRoiKpi').textContent = percent(totals.roi || 0);
       $('filteredCountKpi').textContent = String(totals.count || 0);
       $('salesMarginKpi').textContent = percent(totals.roi || 0);
-      const cost = Number(totals.cost || 0);
-      const profit = Number(totals.profit || 0);
-      $('salesEkProfitRatioKpi').textContent = cost > 0 ? `1 : ${(profit / cost).toFixed(2)}` : '-';
+      renderGlobalSalesHeaderStats();
+    }
+
+    function renderGlobalSalesHeaderStats() {
+      const rows = state.salesAll || state.sales || [];
+      const totalRevenue = rows.reduce((sum, r) => sum + Number(r.vk || 0), 0);
+      const totalProfit = rows.reduce((sum, r) => sum + Number(r.profit || 0), 0);
+      const totalCost = rows.reduce((sum, r) => sum + Number(r.cost || 0), 0);
+      const margin = totalRevenue > 0 ? totalProfit / totalRevenue : 0;
+      $('salesMarginKpi').textContent = percent(margin || 0);
+      $('salesEkProfitRatioKpi').textContent = totalCost > 0 ? `1 : ${(totalProfit / totalCost).toFixed(2)}` : '-';
     }
 
     function toDateString(input) { if (!input) return ''; const d = new Date(input); if (!isNaN(d.getTime())) return d.toISOString().slice(0,10); const s = String(input).trim(); const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if (m) return new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00Z`).toISOString().slice(0,10); return s.slice(0,10); }

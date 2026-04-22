@@ -319,8 +319,15 @@ app.get("/reports/summary", async (req, res) => {
     const inventoryHeader = inventoryData?.header || [];
     const inventoryRows = inventoryData?.rows || [];
     const inventoryIdx = Object.fromEntries(inventoryHeader.map((h, i) => [String(h).trim(), i]));
-    const listIdx = inventoryIdx["Einstellwert"] ?? inventoryIdx["ListPrice"] ?? inventoryIdx["VK"];
-    const inventoryValue = inventoryRows.reduce((sum, row) => sum + Number(String((listIdx !== undefined ? row[listIdx] : 0) ?? 0).replace(',', '.')) || 0, 0);
+    const listIdx = inventoryIdx["Einstellwert"] ?? inventoryIdx["Einstellweit ges"] ?? inventoryIdx["Listenpreis"] ?? inventoryIdx["ListPrice"] ?? inventoryIdx["VK"];
+    const qtyIdx = inventoryIdx["Menge Aktuell"] ?? inventoryIdx["Menge"];
+    const inventoryValue = inventoryRows.reduce((sum, row) => {
+      const raw = listIdx !== undefined ? row[listIdx] : 0;
+      const listValue = Number(String(raw ?? 0).replace(',', '.')) || 0;
+      const qty = qtyIdx !== undefined ? (Number(String(row[qtyIdx] ?? 0).replace(',', '.')) || 0) : 1;
+      const shouldMultiply = String(inventoryHeader[listIdx] || '').trim() === 'Listenpreis';
+      return sum + (shouldMultiply ? (listValue * qty) : listValue);
+    }, 0);
     const forecast = calculateYearTargetLikelihood({ metrics, filteredTotals: filtered.totals, inventoryValue, target: Number(req.query.target || 25000) });
     res.json({ ok: true, period, totals: filtered.totals, topSeller, forecast, rows: filtered.rows, inventoryValue });
   } catch (e) {
@@ -380,8 +387,15 @@ app.get("/dashboard", async (req, res) => {
     const inventoryHeader = inventoryData?.header || [];
     const inventoryRows = inventoryData?.rows || [];
     const inventoryIdx = Object.fromEntries(inventoryHeader.map((h, i) => [String(h).trim(), i]));
-    const listIdx = inventoryIdx["Einstellwert"] ?? inventoryIdx["ListPrice"] ?? inventoryIdx["VK"];
-    const inventoryValue = inventoryRows.reduce((sum, row) => sum + Number(String((listIdx !== undefined ? row[listIdx] : 0) ?? 0).replace(',', '.')) || 0, 0);
+    const listIdx = inventoryIdx["Einstellwert"] ?? inventoryIdx["Einstellweit ges"] ?? inventoryIdx["Listenpreis"] ?? inventoryIdx["ListPrice"] ?? inventoryIdx["VK"];
+    const qtyIdx = inventoryIdx["Menge Aktuell"] ?? inventoryIdx["Menge"];
+    const inventoryValue = inventoryRows.reduce((sum, row) => {
+      const raw = listIdx !== undefined ? row[listIdx] : 0;
+      const listValue = Number(String(raw ?? 0).replace(',', '.')) || 0;
+      const qty = qtyIdx !== undefined ? (Number(String(row[qtyIdx] ?? 0).replace(',', '.')) || 0) : 1;
+      const shouldMultiply = String(inventoryHeader[listIdx] || '').trim() === 'Listenpreis';
+      return sum + (shouldMultiply ? (listValue * qty) : listValue);
+    }, 0);
     const forecast = calculateYearTargetLikelihood({ metrics, filteredTotals: filtered.totals, inventoryValue, target: Number(req.query.target || 25000) });
     const topSeller = filtered.rows.slice().sort((a, b) => b.profit - a.profit)[0] || null;
     res.json({ ok: true, rows: filtered.rows, totals: filtered.totals, filter: filtered.filter, topSeller, forecast, inventoryValue });

@@ -136,6 +136,7 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
   const probability = summary?.forecast?.probability || 0;
   const probabilityLabel = summary?.forecast?.label || 'unbekannt';
   const projectedMonthRevenue = summary?.forecast?.projectedMonthRevenue || 0;
+  const inventoryCapMonthly = summary?.forecast?.inventoryCapMonthly || 0;
   const topSeller = summary?.topSeller;
 
   const summaryLines = [
@@ -155,7 +156,8 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
     `Gesamtgewinn: ${formatEuro(totalProfit)}`,
     `Fortschritt 25k-Ziel: ${progressBar}`,
     `Jahresziel-Wahrscheinlichkeit: ${probability.toFixed(1)}% (${probabilityLabel})`,
-    `Monats-Hochrechnung: ${formatEuro(projectedMonthRevenue)}`,
+    `Monats-Hochrechnung konservativ: ${formatEuro(projectedMonthRevenue)}`,
+    `Bestandsdeckel (Einstellwert): ${formatEuro(inventoryCapMonthly)}`,
     '',
     `🧭 Plan: ${planText}`
   ];

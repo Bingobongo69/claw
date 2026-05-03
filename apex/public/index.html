@@ -32,6 +32,26 @@
     .salesAnchorCard{padding:14px;border-radius:18px;background:linear-gradient(180deg,rgba(96,165,250,0.16),rgba(255,255,255,0.04));border:1px solid rgba(96,165,250,0.28)}
     .salesAnchorValue{font-size:22px;font-weight:800;margin-top:6px}
     .salesAnchorMeta{font-size:12px;color:var(--muted);margin-top:6px}
+    .dateField{display:grid;gap:8px}
+    .dateDisplayBtn{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border-radius:14px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+    .dateDisplayBtn .muted{color:var(--muted);font-weight:500}
+    .dateDisplayBtn.active{border-color:rgba(96,165,250,0.45);box-shadow:0 0 0 3px rgba(96,165,250,0.12)}
+    .calendarPanel{margin-top:12px;padding:14px;border-radius:18px;background:rgba(15,23,42,0.78);border:1px solid var(--border);display:none}
+    .calendarPanel.open{display:block}
+    .calendarHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .calendarNav{width:42px;height:42px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,0.06);color:var(--text);cursor:pointer}
+    .calendarTitle{font-weight:800;font-size:14px}
+    .calendarWeekdays,.calendarDays{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .calendarWeekdays{margin-bottom:8px}
+    .calendarWeekdays div{font-size:11px;color:var(--muted);text-align:center}
+    .calendarDay{aspect-ratio:1/1;border-radius:14px;border:1px solid transparent;background:rgba(255,255,255,0.04);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+    .calendarDay:hover{background:rgba(255,255,255,0.08)}
+    .calendarDay.outside{opacity:.32}
+    .calendarDay.selected{background:linear-gradient(180deg,rgba(96,165,250,0.38),rgba(59,130,246,0.22));border-color:rgba(96,165,250,0.5)}
+    .calendarDay.inRange{background:rgba(96,165,250,0.12);border-color:rgba(96,165,250,0.2)}
+    .calendarDay.today{box-shadow:inset 0 0 0 1px rgba(255,255,255,0.22)}
+    .calendarActions{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+    .calendarActionBtn{width:auto;padding:10px 14px;border-radius:12px}
     .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(760px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
     .modalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:.2s;z-index:30}
     .modalBackdrop.show{opacity:1;pointer-events:auto}
@@ -107,13 +127,30 @@
           <div class="salesCalendarShell">
             <div class="subtitle">Kalenderbereich</div>
             <div class="salesCalendarGrid">
-              <div>
+              <div class="dateField">
                 <label>Von</label>
-                <input type="date" id="salesFrom" />
+                <button type="button" class="dateDisplayBtn" id="salesFromBtn"><span id="salesFromLabel" class="muted">Datum wählen</span><span>📅</span></button>
+                <input type="hidden" id="salesFrom" />
               </div>
-              <div>
+              <div class="dateField">
                 <label>Bis</label>
-                <input type="date" id="salesTo" />
+                <button type="button" class="dateDisplayBtn" id="salesToBtn"><span id="salesToLabel" class="muted">Datum wählen</span><span>📅</span></button>
+                <input type="hidden" id="salesTo" />
+              </div>
+            </div>
+            <div class="calendarPanel" id="salesCalendarPanel">
+              <div class="calendarHeader">
+                <button type="button" class="calendarNav" id="calendarPrev">‹</button>
+                <div class="calendarTitle" id="calendarTitle">-</div>
+                <button type="button" class="calendarNav" id="calendarNext">›</button>
+              </div>
+              <div class="calendarWeekdays">
+                <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
+              </div>
+              <div class="calendarDays" id="calendarDays"></div>
+              <div class="calendarActions">
+                <button type="button" class="calendarActionBtn" id="calendarClear">Reset</button>
+                <button type="button" class="calendarActionBtn btnGreen" id="calendarClose">Fertig</button>
               </div>
             </div>
           </div>
@@ -228,7 +265,7 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const state = { metrics:null, sales:null, salesAll:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7, salesFilter:{ range:'7d', from:'', to:'', search:'', sort:'date_desc' }, dashboard:null };
+    const state = { metrics:null, sales:null, salesAll:null, settings:null, inventory:null, yearGoal:25000, dayGoal:2000, range:7, salesFilter:{ range:'7d', from:'', to:'', search:'', sort:'date_desc' }, dashboard:null, calendar:{ open:false, target:'from', viewYear:new Date().getUTCFullYear(), viewMonth:new Date().getUTCMonth() } };
     let bucketMemo = new Map();
     let salesSignature = '';
     let salesStats = {};
@@ -254,6 +291,11 @@
     async function api(url, opts) { const res = await fetch(url, opts); if (!res.ok) throw new Error(await res.text()); return res.json(); }
     const euro = (v) => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(v||0));
     const percent = (v) => `${(Number(v || 0) * 100).toFixed(1)}%`;
+    const dateLabel = (value) => {
+      if (!value) return 'Datum wählen';
+      const d = new Date(`${value}T00:00:00Z`);
+      return new Intl.DateTimeFormat('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', timeZone:'UTC' }).format(d);
+    };
 
     function buildSalesQuery() {
       const params = new URLSearchParams();
@@ -292,8 +334,95 @@
       });
       $('salesFrom').value = state.salesFilter.from || '';
       $('salesTo').value = state.salesFilter.to || '';
+      updateDateButtons();
       $('salesSearch').value = state.salesFilter.search || '';
       $('salesSort').value = state.salesFilter.sort || 'date_desc';
+    }
+
+    function updateDateButtons() {
+      const fromValue = state.salesFilter.from || '';
+      const toValue = state.salesFilter.to || '';
+      $('salesFromLabel').textContent = dateLabel(fromValue);
+      $('salesToLabel').textContent = dateLabel(toValue);
+      $('salesFromLabel').className = fromValue ? '' : 'muted';
+      $('salesToLabel').className = toValue ? '' : 'muted';
+      $('salesFromBtn').classList.toggle('active', state.calendar.open && state.calendar.target === 'from');
+      $('salesToBtn').classList.toggle('active', state.calendar.open && state.calendar.target === 'to');
+    }
+
+    function openCalendar(target) {
+      state.calendar.open = true;
+      state.calendar.target = target;
+      const currentValue = target === 'from' ? state.salesFilter.from : state.salesFilter.to;
+      const base = currentValue ? new Date(`${currentValue}T00:00:00Z`) : new Date();
+      state.calendar.viewYear = base.getUTCFullYear();
+      state.calendar.viewMonth = base.getUTCMonth();
+      $('salesCalendarPanel').classList.add('open');
+      updateDateButtons();
+      renderCalendar();
+    }
+
+    function closeCalendar() {
+      state.calendar.open = false;
+      $('salesCalendarPanel').classList.remove('open');
+      updateDateButtons();
+    }
+
+    function formatIsoDate(year, month, day) {
+      return `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    }
+
+    function renderCalendar() {
+      const year = state.calendar.viewYear;
+      const month = state.calendar.viewMonth;
+      const first = new Date(Date.UTC(year, month, 1));
+      const last = new Date(Date.UTC(year, month + 1, 0));
+      const startWeekday = (first.getUTCDay() + 6) % 7;
+      const daysInMonth = last.getUTCDate();
+      const prevLast = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      $('calendarTitle').textContent = new Intl.DateTimeFormat('de-DE', { month:'long', year:'numeric', timeZone:'UTC' }).format(first);
+      const items = [];
+      for (let i = 0; i < startWeekday; i++) {
+        const day = prevLast - startWeekday + i + 1;
+        items.push({ year, month: month - 1, day, outside: true });
+      }
+      for (let day = 1; day <= daysInMonth; day++) items.push({ year, month, day, outside: false });
+      while (items.length % 7 !== 0) {
+        items.push({ year, month: month + 1, day: items.length - (startWeekday + daysInMonth) + 1, outside: true });
+      }
+      const todayIso = toDateString(new Date());
+      const from = state.salesFilter.from || '';
+      const to = state.salesFilter.to || '';
+      $('calendarDays').innerHTML = items.map((item) => {
+        const date = new Date(Date.UTC(item.year, item.month, item.day));
+        const iso = date.toISOString().slice(0,10);
+        const selected = (state.calendar.target === 'from' && iso === from) || (state.calendar.target === 'to' && iso === to);
+        const inRange = from && to && iso >= from && iso <= to;
+        const cls = ['calendarDay'];
+        if (item.outside) cls.push('outside');
+        if (selected) cls.push('selected');
+        else if (inRange) cls.push('inRange');
+        if (iso === todayIso) cls.push('today');
+        return `<button type="button" class="${cls.join(' ')}" data-calendar-date="${iso}">${date.getUTCDate()}</button>`;
+      }).join('');
+      document.querySelectorAll('[data-calendar-date]').forEach((btn) => {
+        btn.onclick = async () => {
+          const iso = btn.dataset.calendarDate;
+          state.salesFilter.range = 'custom';
+          if (state.calendar.target === 'from') {
+            state.salesFilter.from = iso;
+            $('salesFrom').value = iso;
+            if (state.salesFilter.to && state.salesFilter.to < iso) state.salesFilter.to = iso;
+          } else {
+            state.salesFilter.to = iso;
+            $('salesTo').value = iso;
+            if (state.salesFilter.from && state.salesFilter.from > iso) state.salesFilter.from = iso;
+          }
+          updateDateButtons();
+          renderCalendar();
+          await loadSales();
+        };
+      });
     }
 
     function renderFilteredSalesKpis(totals) {
@@ -920,8 +1049,20 @@
     });
     [...document.querySelectorAll('.chip[data-range]')].forEach(chip => chip.onclick = () => { document.querySelectorAll('.chip[data-range]').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.range = Number(chip.dataset.range); renderDashboard(); });
     [...document.querySelectorAll('.sales-filter-chip')].forEach(chip => chip.onclick = async () => { document.querySelectorAll('.sales-filter-chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); state.salesFilter.range = chip.dataset.salesRange; if (chip.dataset.salesRange !== 'custom') { state.salesFilter.from = ''; state.salesFilter.to = ''; $('salesFrom').value = ''; $('salesTo').value = ''; } await loadSales(); });
-    $('salesFrom').onchange = async (e) => { state.salesFilter.range = 'custom'; state.salesFilter.from = e.target.value || ''; await loadSales(); };
-    $('salesTo').onchange = async (e) => { state.salesFilter.range = 'custom'; state.salesFilter.to = e.target.value || ''; await loadSales(); };
+    $('salesFromBtn').onclick = () => openCalendar('from');
+    $('salesToBtn').onclick = () => openCalendar('to');
+    $('calendarPrev').onclick = () => { state.calendar.viewMonth -= 1; if (state.calendar.viewMonth < 0) { state.calendar.viewMonth = 11; state.calendar.viewYear -= 1; } renderCalendar(); };
+    $('calendarNext').onclick = () => { state.calendar.viewMonth += 1; if (state.calendar.viewMonth > 11) { state.calendar.viewMonth = 0; state.calendar.viewYear += 1; } renderCalendar(); };
+    $('calendarClear').onclick = async () => {
+      state.salesFilter.range = 'custom';
+      if (state.calendar.target === 'from') state.salesFilter.from = ''; else state.salesFilter.to = '';
+      $('salesFrom').value = state.salesFilter.from || '';
+      $('salesTo').value = state.salesFilter.to || '';
+      updateDateButtons();
+      renderCalendar();
+      await loadSales();
+    };
+    $('calendarClose').onclick = () => closeCalendar();
     let salesSearchTimer = null;
     $('salesSearch').oninput = (e) => {
       state.salesFilter.search = e.target.value || '';

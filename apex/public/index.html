@@ -9,7 +9,7 @@
   <link rel="icon" href="/app-icon.png" />
   <title>Apex</title>
   <style>
-    :root { --bg:#0f172a; --bg2:#111827; --card:rgba(255,255,255,0.08); --border:rgba(255,255,255,0.10); --text:#e5eefc; --muted:#94a3b8; --accent:#60a5fa; --green:#22c55e; --red:#ef4444; --yellow:#f59e0b; --shadow:0 10px 30px rgba(0,0,0,0.25); --radius:20px; }
+    :root { --bg:#0f172a; --bg2:#111827; --card:rgba(255,255,255,0.08); --border:rgba(255,255,255,0.10); --text:#e5eefc; --muted:#94a3b8; --accent:#60a5fa; --green:#22c55e; --red:#ef4444; --yellow:#f59e0b; --shadow:0 10px 30px rgba(0,0,0,0.25); --radius:20px; --surface-soft:rgba(255,255,255,0.04); --input-bg:rgba(255,255,255,0.04); }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);color:var(--text);overflow-x:hidden}
     .app{max-width:520px;margin:0 auto;min-height:100vh;padding:18px 16px 96px;position:relative}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;color:var(--muted)}
@@ -26,7 +26,12 @@
     .seoSuggestion{margin-top:8px;border-radius:14px;border:1px solid var(--border);padding:10px;background:rgba(255,255,255,0.03);font-size:12px;color:var(--muted);white-space:pre-line}
     .seoStatus{margin-top:6px;font-size:12px;color:var(--muted)}
     .list{display:grid;gap:10px}.sale,.task{padding:14px}.saleTop,.taskTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.saleTitle{font-size:13px;font-weight:600;color:var(--muted)} .saleRevenue{font-size:24px;font-weight:800;line-height:1}.saleProfit{font-size:13px;margin-top:6px}.saleMeta,.taskMeta,.costRow{font-size:12px;color:var(--muted)} .costRow{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}.profitPos{color:var(--green);font-weight:700}.profitNeg{color:var(--red);font-weight:700}
-    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input{width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)} button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155}.btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)} .calcResult{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px} input,select{width:100%;padding:13px 14px;border-radius:14px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);font:inherit;outline:none;box-shadow:none} input:focus,select:focus{border-color:rgba(96,165,250,0.45);box-shadow:0 0 0 3px rgba(96,165,250,0.12)} input[type="date"]{appearance:none;-webkit-appearance:none;min-height:48px;color-scheme:dark} input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.9) sepia(0.2) saturate(2) hue-rotate(180deg);opacity:.9;cursor:pointer} button{width:100%;padding:14px;border:none;border-radius:16px;font-weight:700;color:white;background:#334155}.btnGreen{background:linear-gradient(180deg,#22c55e,#16a34a)} .btnRed{background:linear-gradient(180deg,#ef4444,#dc2626)} .calcResult{padding:14px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
+    .salesCalendarShell{padding:14px;border-radius:18px;background:var(--surface-soft);border:1px solid var(--border)}
+    .salesCalendarGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .salesAnchorCard{padding:14px;border-radius:18px;background:linear-gradient(180deg,rgba(96,165,250,0.16),rgba(255,255,255,0.04));border:1px solid rgba(96,165,250,0.28)}
+    .salesAnchorValue{font-size:22px;font-weight:800;margin-top:6px}
+    .salesAnchorMeta{font-size:12px;color:var(--muted);margin-top:6px}
     .bottomTabs{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(760px,calc(100vw - 20px));display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-radius:22px;background:rgba(15,23,42,0.78);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(18px);box-shadow:var(--shadow)}.tabBtn{padding:12px 8px;border-radius:16px;background:transparent;border:none;color:var(--muted);font-size:12px}.tabBtn.active{background:rgba(255,255,255,0.10);color:var(--text)}
     .modalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:.2s;z-index:30}
     .modalBackdrop.show{opacity:1;pointer-events:auto}
@@ -68,14 +73,7 @@
         <div class="panelTitle">Quick Insights</div>
         <div class="miniGrid" id="insightGrid"></div>
       </div>
-      <div class="glass card stack" style="margin-top:12px">
-        <div class="panelTitle">Prognose nächster Monat</div>
-        <div class="miniGrid" id="forecastGrid"></div>
-      </div>
-      <div class="glass card stack" style="margin-top:12px">
-        <div class="panelTitle">Nächste Aktionen</div>
-        <div class="actionList" id="actionList"></div>
-      </div>
+
     </section>
 
     <section class="section" id="salesSection">
@@ -106,14 +104,17 @@
             <button class="chip sales-filter-chip" data-sales-range="7d">7 Tage</button>
             <button class="chip sales-filter-chip" data-sales-range="custom">Kalender</button>
           </div>
-          <div class="row">
-            <div>
-              <label>Von</label>
-              <input type="date" id="salesFrom" />
-            </div>
-            <div>
-              <label>Bis</label>
-              <input type="date" id="salesTo" />
+          <div class="salesCalendarShell">
+            <div class="subtitle">Kalenderbereich</div>
+            <div class="salesCalendarGrid">
+              <div>
+                <label>Von</label>
+                <input type="date" id="salesFrom" />
+              </div>
+              <div>
+                <label>Bis</label>
+                <input type="date" id="salesTo" />
+              </div>
             </div>
           </div>
           <div class="row">
@@ -123,7 +124,7 @@
             </div>
             <div>
               <label>Sortierung</label>
-              <select id="salesSort" style="width:100%;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text)">
+              <select id="salesSort">
                 <option value="date_desc">Neueste</option>
                 <option value="price_desc">VK höchster</option>
                 <option value="price_asc">VK niedrigster</option>
@@ -137,6 +138,8 @@
       </div>
       <div class="glass card" style="margin-bottom:12px">
         <div class="miniGrid">
+          <div class="salesAnchorCard"><div class="subtitle">Monatsumsatz</div><div class="salesAnchorValue" id="monthRevenueAnchor">-</div><div class="salesAnchorMeta">Immer aktueller Kalendermonat</div></div>
+          <div class="salesAnchorCard"><div class="subtitle">Monatsgewinn</div><div class="salesAnchorValue" id="monthProfitAnchor">-</div><div class="salesAnchorMeta">Unabhängig von Filtern</div></div>
           <div class="miniCard"><div class="subtitle">Gefilterter Umsatz</div><div class="miniVal" id="filteredRevenueKpi">-</div></div>
           <div class="miniCard"><div class="subtitle">Gefilterter Gewinn</div><div class="miniVal" id="filteredProfitKpi">-</div></div>
           <div class="miniCard"><div class="subtitle">Gefilterter ROI</div><div class="miniVal" id="filteredRoiKpi">-</div></div>
@@ -307,11 +310,18 @@
       const totalRevenue = rows.reduce((sum, r) => sum + Number(r.vk || 0), 0);
       const totalProfit = rows.reduce((sum, r) => sum + Number(r.profit || 0), 0);
       const totalCost = rows.reduce((sum, r) => sum + Number(r.cost || 0), 0);
+      const now = new Date();
+      const currentMonthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+      const monthRows = rows.filter((r) => toDateString(r.date).slice(0, 7) === currentMonthKey);
+      const monthRevenue = monthRows.reduce((sum, r) => sum + Number(r.vk || 0), 0);
+      const monthProfit = monthRows.reduce((sum, r) => sum + Number(r.profit || 0), 0);
       const margin = totalRevenue > 0 ? totalProfit / totalRevenue : 0;
       const roi = totalCost > 0 ? totalProfit / totalCost : 0;
       $('salesRoiKpi').textContent = percent(roi || 0);
       $('salesMarginKpi').textContent = percent(margin || 0);
       $('salesTotalCostKpi').textContent = euro(totalCost || 0);
+      $('monthRevenueAnchor').textContent = euro(monthRevenue || 0);
+      $('monthProfitAnchor').textContent = euro(monthProfit || 0);
     }
 
     function toDateString(input) { if (!input) return ''; const d = new Date(input); if (!isNaN(d.getTime())) return d.toISOString().slice(0,10); const s = String(input).trim(); const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if (m) return new Date(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T00:00:00Z`).toISOString().slice(0,10); return s.slice(0,10); }
@@ -595,7 +605,6 @@
 
     function renderForecast() {
       const forecast = buildNextMonthForecast();
-      const forecastGrid = $('forecastGrid');
       const forecastTabGrid = $('forecastTabGrid');
       const forecastWarnings = $('forecastWarnings');
       const cards = [
@@ -604,7 +613,6 @@
         ['Orders', `${Math.round(forecast.orders)}`, `Ø Warenkorb ${euro(forecast.avgOrderValue)}`],
         ['Datenqualität', `${forecast.dataQualityScore}/100`, `Confidence ${forecast.confidence}`]
       ].map(([label, value, hint]) => `<div class="miniCard"><div class="kpiLabel">${label}</div><div class="miniVal">${value}</div><div class="miniHint">${hint}</div></div>`).join('');
-      if (forecastGrid) forecastGrid.innerHTML = cards;
       if (forecastTabGrid) forecastTabGrid.innerHTML = cards;
       if (forecastWarnings) {
         forecastWarnings.innerHTML = forecast.warnings.length
@@ -616,8 +624,7 @@
     function renderExecutiveInsights() {
       const insightGrid = $('insightGrid');
       const salesOverviewGrid = $('salesOverviewGrid');
-      const actionList = $('actionList');
-      if (!insightGrid || !actionList) return;
+      if (!insightGrid) return;
       const salesRows = state.sales || [];
       const inventoryRows = state.inventory || [];
       const profitableRows = salesRows.filter((row) => Number(row.profit || 0) > 0);
@@ -655,13 +662,7 @@
         ['Offene Chance', `${restockCount}`, 'potenzielle Restocks']
       ].map(([label, value, hint]) => `<div class="miniCard"><div class="kpiLabel">${label}</div><div class="miniVal">${value}</div><div class="miniHint">${hint}</div></div>`).join('');
 
-      const actions = [];
-      if (lowMarginCount) actions.push({ priority: 'high', title: 'Low-Margin Sales prüfen', note: `${lowMarginCount} Verkäufe liegen unter 20% Marge. Gebühren, EK oder Preis prüfen.` });
-      if (agedStock) actions.push({ priority: 'high', title: 'Altbestand reduzieren', note: `${agedStock} Artikel sind älter als 45 Tage. Preis senken oder Abverkauf testen.` });
-      if (topSku) actions.push({ priority: 'medium', title: 'Winning SKU nachkaufen', note: `${topSku.sku} ist aktuell dein stärkster Profit-Treiber.` });
-      if (restockCount) actions.push({ priority: 'medium', title: 'Restock-Kandidaten sichern', note: `${restockCount} SKUs verkaufen sich gut trotz knappem Bestand.` });
-      if (!actions.length) actions.push({ priority: 'low', title: 'Keine kritischen Aktionen', note: 'Aktuell sehen die Kernkennzahlen stabil aus.' });
-      actionList.innerHTML = actions.slice(0, 4).map((item) => `<div class="actionItem"><div class="actionTop"><div class="saleTitle">${item.title}</div><span class="badge ${item.priority}">${item.priority.toUpperCase()}</span></div><div class="miniHint">${item.note}</div></div>`).join('');
+
     }
 
     function renderDashboard() {

@@ -3,6 +3,7 @@
 const PERIODS = {
   weekly: { label: 'Wöchentlicher Report', lookbackDays: 7, scheduleHint: 'Montag' },
   monthly: { label: 'Monatsreport', lookbackDays: 31, scheduleHint: '1. des Monats' },
+  quarterly: { label: 'Quartalsreport', lookbackDays: 92, scheduleHint: '1. Tag des Quartals' },
   yearly: { label: 'Jahresreport', lookbackDays: 365, scheduleHint: '1. Januar' }
 };
 
@@ -39,6 +40,13 @@ function calcDaysLeft(period) {
     const month = now.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     return Math.max(1, daysInMonth - now.getDate());
+  }
+  if (period === 'quarterly') {
+    const currentQuarter = Math.floor(now.getMonth() / 3);
+    const endMonth = (currentQuarter * 3) + 2;
+    const endOfQuarter = new Date(now.getFullYear(), endMonth + 1, 0);
+    const diffMs = endOfQuarter - now;
+    return Math.max(1, Math.ceil(diffMs / 86400000));
   }
   if (period === 'yearly') {
     const endOfYear = new Date(now.getFullYear(), 11, 31);
@@ -94,8 +102,21 @@ function formatRange(range) {
   if (!range?.start || !range?.end) return '';
   const start = new Date(range.start);
   const end = new Date(range.end);
-  const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
+  const fmt = (d) => `${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.`;
   return `${fmt(start)} – ${fmt(end)}`;
+}
+
+function describePeriod({ period, report, lookbackDays, year, month, quarter }) {
+  if (period === 'monthly' && year && month) {
+    return `Zeitraum: ${String(month).padStart(2, '0')}.${year}`;
+  }
+  if (period === 'quarterly' && year && quarter) {
+    return `Zeitraum: Q${quarter} ${year}`;
+  }
+  if (period === 'yearly' && year) {
+    return `Zeitraum: ${year}`;
+  }
+  return report.range ? `Zeitraum: ${formatRange(report.range)}` : `Zeitraum: letzte ${lookbackDays} Tage`;
 }
 
 function buildPlanText(period, remaining, daysLeft) {
@@ -104,7 +125,7 @@ function buildPlanText(period, remaining, daysLeft) {
   return `Es fehlen ${formatEuro(remaining)} zum Ziel. Empfohlen: ${formatEuro(perDay)} Einstellwert pro Tag (${period}).`;
 }
 
-export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
+export async function sendReport({ period = 'weekly', dryRun = false, year, month, quarter } = {}) {
   if (!PERIODS[period]) {
     throw new Error(`Unsupported period: ${period}`);
   }
@@ -116,21 +137,51 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
 
   const lookbackDays = PERIODS[period].lookbackDays;
   const tz = process.env.REPORT_TIMEZONE || 'Europe/Berlin';
+  const target = Number(process.env.REVENUE_TARGET || 25000);
+  const summaryParams = new URLSearchParams({ period, target: String(target) });
+  if (year) summaryParams.set('year', String(year));
+  if (month) summaryParams.set('month', String(month));
+  if (quarter) summaryParams.set('quarter', String(quarter));
+
+  let weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}`;
+  if (period === 'monthly' && year && month) {
+    const start = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`;
+    const endDate = new Date(Date.UTC(Number(year), Number(month), 0));
+    const end = `${String(endDate.getUTCFullYear()).padStart(4, '0')}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}-${String(endDate.getUTCDate()).padStart(2, '0')}`;
+    weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}&date=${encodeURIComponent(end)}`;
+    summaryParams.set('from', start);
+    summaryParams.set('to', end);
+  } else if (period === 'quarterly' && year && quarter) {
+    const startMonth = (Number(quarter) - 1) * 3 + 1;
+    const start = `${String(year).padStart(4, '0')}-${String(startMonth).padStart(2, '0')}-01`;
+    const endDate = new Date(Date.UTC(Number(year), startMonth + 2, 0));
+    const end = `${String(endDate.getUTCFullYear()).padStart(4, '0')}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}-${String(endDate.getUTCDate()).padStart(2, '0')}`;
+    weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}&date=${encodeURIComponent(end)}`;
+    summaryParams.set('from', start);
+    summaryParams.set('to', end);
+  } else if (period === 'yearly' && year) {
+    const start = `${String(year).padStart(4, '0')}-01-01`;
+    const end = `${String(year).padStart(4, '0')}-12-31`;
+    weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}&date=${encodeURIComponent(end)}`;
+    summaryParams.set('from', start);
+    summaryParams.set('to', end);
+  }
+
   const [metrics, inventory, report, summary] = await Promise.all([
     fetchJson(baseUrl, '/metrics'),
     fetchJson(baseUrl, '/inventory'),
-    fetchJson(baseUrl, `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}`),
-    fetchJson(baseUrl, `/reports/summary?period=${encodeURIComponent(period)}&target=${encodeURIComponent(process.env.REVENUE_TARGET || '25000')}`)
+    fetchJson(baseUrl, weeklyPath.trim()),
+    fetchJson(baseUrl, `/reports/summary?${summaryParams.toString()}`)
   ]);
 
   const inventoryTotals = sumInventory(inventory);
   const totalRevenue = Number(metrics.totalRevenue || 0);
   const totalProfit = Number(metrics.totalProfit || 0);
-  const target = Number(process.env.REVENUE_TARGET || metrics.revenueGoal || 25000);
-  const remaining = Math.max(0, target - totalRevenue);
+  const effectiveTarget = Number(process.env.REVENUE_TARGET || metrics.revenueGoal || target || 25000);
+  const remaining = Math.max(0, effectiveTarget - totalRevenue);
   const daysLeft = calcDaysLeft(period);
   const planText = buildPlanText(period, remaining, daysLeft);
-  const progressPct = target > 0 ? (totalRevenue / target) * 100 : 0;
+  const progressPct = effectiveTarget > 0 ? (totalRevenue / effectiveTarget) * 100 : 0;
   const progressBar = buildProgressBar(Math.min(100, progressPct));
 
   const probability = summary?.forecast?.probability || 0;
@@ -138,13 +189,17 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
   const projectedMonthRevenue = summary?.forecast?.projectedMonthRevenue || 0;
   const inventoryCapMonthly = summary?.forecast?.inventoryCapMonthly || 0;
   const topSeller = summary?.topSeller;
+  const orders = report?.totals?.orders || summary?.totals?.count || 0;
+  const periodRevenue = summary?.totals?.revenue ?? report?.totals?.revenue ?? 0;
+  const periodProfit = summary?.totals?.profit ?? report?.totals?.profit ?? 0;
+  const periodRoi = summary?.totals?.roi ?? report?.totals?.grossMargin ?? 0;
 
   const summaryLines = [
     `📊 ${PERIODS[period].label}`,
-    report.range ? `Zeitraum: ${formatRange(report.range)}` : `Zeitraum: letzte ${lookbackDays} Tage`,
-    `Bestellmenge: ${report.totals?.orders || summary?.totals?.count || 0}`,
-    `Umsatz: ${formatEuro(summary?.totals?.revenue ?? report.totals?.revenue || 0)}`,
-    `Gewinn: ${formatEuro(summary?.totals?.profit ?? report.totals?.profit || 0)} (${formatPercent((summary?.totals?.roi || report.totals?.grossMargin || 0) * 100)})`,
+    describePeriod({ period, report, lookbackDays, year, month, quarter }),
+    `Bestellmenge: ${orders}`,
+    `Umsatz: ${formatEuro(periodRevenue)}`,
+    `Gewinn: ${formatEuro(periodProfit)} (${formatPercent(periodRoi * 100)})`,
     topSeller ? `Top-Seller: ${topSeller.title || topSeller.sku || '-'} (${formatEuro(topSeller.profit || 0)} Gewinn)` : 'Top-Seller: -',
     '',
     '📦 Lager',
@@ -167,9 +222,9 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
     period,
     from: report?.range?.start || '',
     to: report?.range?.end || '',
-    revenue: Number(summary?.totals?.revenue || report?.totals?.revenue || 0),
-    profit: Number(summary?.totals?.profit || report?.totals?.profit || 0),
-    roi: Number(summary?.totals?.roi || report?.totals?.grossMargin || 0),
+    revenue: Number(periodRevenue || 0),
+    profit: Number(periodProfit || 0),
+    roi: Number(periodRoi || 0),
     topSeller: topSeller ? (topSeller.title || topSeller.sku || '') : '',
     targetLikelihood: `${probability.toFixed(1)}% (${probabilityLabel})`
   };
@@ -209,7 +264,13 @@ export async function sendReport({ period = 'weekly', dryRun = false } = {}) {
 
 async function main() {
   const args = parseArgs();
-  const result = await sendReport({ period: args.period || 'weekly', dryRun: Boolean(args['dry-run']) });
+  const result = await sendReport({
+    period: args.period || 'weekly',
+    dryRun: Boolean(args['dry-run']),
+    year: args.year ? Number(args.year) : undefined,
+    month: args.month ? Number(args.month) : undefined,
+    quarter: args.quarter ? Number(args.quarter) : undefined
+  });
   if (result.dryRun) {
     console.log('--- DRY RUN ---');
     console.log(result.message);

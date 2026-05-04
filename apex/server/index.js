@@ -160,6 +160,21 @@ function filterSalesRows(rows, query = {}) {
     start.setUTCDate(start.getUTCDate() - 6);
     from = normalizeDateString(start);
     to = todayIso;
+  } else if (query.range === "month") {
+    const year = Number(query.year) || now.getUTCFullYear();
+    const monthIndex = Math.max(0, Math.min(11, (Number(query.month) || (now.getUTCMonth() + 1)) - 1));
+    from = normalizeDateString(new Date(Date.UTC(year, monthIndex, 1)));
+    to = normalizeDateString(new Date(Date.UTC(year, monthIndex + 1, 0)));
+  } else if (query.range === "quarter") {
+    const year = Number(query.year) || now.getUTCFullYear();
+    const quarter = Math.max(1, Math.min(4, Number(query.quarter) || (Math.floor(now.getUTCMonth() / 3) + 1)));
+    const startMonth = (quarter - 1) * 3;
+    from = normalizeDateString(new Date(Date.UTC(year, startMonth, 1)));
+    to = normalizeDateString(new Date(Date.UTC(year, startMonth + 3, 0)));
+  } else if (query.range === "year") {
+    const year = Number(query.year) || now.getUTCFullYear();
+    from = normalizeDateString(new Date(Date.UTC(year, 0, 1)));
+    to = normalizeDateString(new Date(Date.UTC(year, 11, 31)));
   }
   const search = String(query.search || "").trim().toLowerCase();
   const sort = String(query.sort || "date_desc");
@@ -306,14 +321,18 @@ app.get("/reports/summary", async (req, res) => {
     const rows = normalizeSalesRows(salesData);
     let range = "today";
     if (period === "weekly") range = "7d";
-    if (period === "monthly") range = null;
-    if (period === "yearly") range = null;
+    if (period === "monthly") range = "month";
+    if (period === "quarterly") range = "quarter";
+    if (period === "yearly") range = "year";
     const filtered = filterSalesRows(rows, {
       range,
       from: req.query.from,
       to: req.query.to,
       search: req.query.search,
-      sort: req.query.sort
+      sort: req.query.sort,
+      month: req.query.month,
+      quarter: req.query.quarter,
+      year: req.query.year
     });
     const topSeller = filtered.rows.slice().sort((a, b) => b.profit - a.profit)[0] || null;
     const inventoryHeader = inventoryData?.header || [];

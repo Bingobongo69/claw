@@ -125,6 +125,66 @@ function buildPlanText(period, remaining, daysLeft) {
   return `Es fehlen ${formatEuro(remaining)} zum Ziel. Empfohlen: ${formatEuro(perDay)} Einstellwert pro Tag (${period}).`;
 }
 
+function getMonthlyBounds(year, month) {
+  const start = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`;
+  const endDate = new Date(Date.UTC(Number(year), Number(month), 0));
+  const end = `${String(endDate.getUTCFullYear()).padStart(4, '0')}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}-${String(endDate.getUTCDate()).padStart(2, '0')}`;
+  return { start, end };
+}
+
+function getQuarterBounds(year, quarter) {
+  const startMonth = (Number(quarter) - 1) * 3 + 1;
+  const start = `${String(year).padStart(4, '0')}-${String(startMonth).padStart(2, '0')}-01`;
+  const endDate = new Date(Date.UTC(Number(year), startMonth + 2, 0));
+  const end = `${String(endDate.getUTCFullYear()).padStart(4, '0')}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}-${String(endDate.getUTCDate()).padStart(2, '0')}`;
+  return { start, end };
+}
+
+function getYearBounds(year) {
+  return {
+    start: `${String(year).padStart(4, '0')}-01-01`,
+    end: `${String(year).padStart(4, '0')}-12-31`
+  };
+}
+
+function buildComparisonLabel(period) {
+  if (period === 'weekly') return 'vs. Vorwoche';
+  if (period === 'monthly') return 'vs. Vormonat';
+  if (period === 'quarterly') return 'vs. Vorquartal';
+  if (period === 'yearly') return 'vs. Vorjahr';
+  return 'vs. Vergleichszeitraum';
+}
+
+function formatDelta(current, previous, kind = 'currency') {
+  const curr = Number(current || 0);
+  const prev = Number(previous || 0);
+  const diff = curr - prev;
+  const pct = prev !== 0 ? (diff / prev) * 100 : null;
+  const prefix = diff > 0 ? '+' : diff < 0 ? '-' : '±';
+  const abs = Math.abs(diff);
+  const valueText = kind === 'percent'
+    ? `${prefix}${formatPercent(abs * 100)}`
+    : kind === 'count'
+      ? `${prefix}${Math.round(abs)}`
+      : `${prefix}${formatEuro(abs)}`;
+  if (pct === null) return `${valueText} (neu/kein Vergleich)`;
+  return `${valueText} / ${prefix}${formatPercent(Math.abs(pct))}`;
+}
+
+function buildRecommendation({ periodRevenue, periodProfit, periodRoi, inventoryTotals, forecast, previousRevenue, previousProfit }) {
+  const recs = [];
+  if (previousRevenue && periodRevenue < previousRevenue) recs.push('Umsatz unter Vergleichszeitraum: Listings-Nachschub und Conversion-Bremsen prüfen.');
+  if (previousProfit && periodProfit < previousProfit) recs.push('Gewinn schwächer als Vergleich: Gebühren, EK und Versandkosten bei Ausreißern prüfen.');
+  if (periodRoi < 0.35) recs.push('ROI zu niedrig: Fokus auf margenträchtigere Kategorien und strengere Einkaufsfilter.');
+  if (inventoryTotals.listTotal > 0 && periodRevenue > 0) {
+    const turnover = periodRevenue / inventoryTotals.listTotal;
+    if (turnover < 0.25) recs.push('Lagerumschlag niedrig: ältere Bestände priorisiert repricen oder aktiv abverkaufen.');
+  }
+  if ((forecast?.probability || 0) < 60) recs.push('Zielwahrscheinlichkeit niedrig: Pace bei Listings und umsatzstarken SKUs erhöhen.');
+  if (!recs.length) recs.push('Solide Entwicklung: aktuellen Listing- und Margenmix beibehalten, Top-Seller stärker ausbauen.');
+  return recs.slice(0, 3);
+}
+
 export async function sendReport({ period = 'weekly', dryRun = false, year, month, quarter } = {}) {
   if (!PERIODS[period]) {
     throw new Error(`Unsupported period: ${period}`);
@@ -144,35 +204,49 @@ export async function sendReport({ period = 'weekly', dryRun = false, year, mont
   if (quarter) summaryParams.set('quarter', String(quarter));
 
   let weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}`;
+  let comparisonParams = null;
   if (period === 'monthly' && year && month) {
-    const start = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`;
-    const endDate = new Date(Date.UTC(Number(year), Number(month), 0));
-    const end = `${String(endDate.getUTCFullYear()).padStart(4, '0')}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}-${String(endDate.getUTCDate()).padStart(2, '0')}`;
+    const { start, end } = getMonthlyBounds(year, month);
+    const prevMonth = Number(month) === 1 ? 12 : Number(month) - 1;
+    const prevYear = Number(month) === 1 ? Number(year) - 1 : Number(year);
     weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}&date=${encodeURIComponent(end)}`;
     summaryParams.set('from', start);
     summaryParams.set('to', end);
+    comparisonParams = new URLSearchParams({ period, target: String(target), year: String(prevYear), month: String(prevMonth), from: getMonthlyBounds(prevYear, prevMonth).start, to: getMonthlyBounds(prevYear, prevMonth).end });
   } else if (period === 'quarterly' && year && quarter) {
-    const startMonth = (Number(quarter) - 1) * 3 + 1;
-    const start = `${String(year).padStart(4, '0')}-${String(startMonth).padStart(2, '0')}-01`;
-    const endDate = new Date(Date.UTC(Number(year), startMonth + 2, 0));
-    const end = `${String(endDate.getUTCFullYear()).padStart(4, '0')}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}-${String(endDate.getUTCDate()).padStart(2, '0')}`;
+    const { start, end } = getQuarterBounds(year, quarter);
+    const prevQuarter = Number(quarter) === 1 ? 4 : Number(quarter) - 1;
+    const prevYear = Number(quarter) === 1 ? Number(year) - 1 : Number(year);
     weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}&date=${encodeURIComponent(end)}`;
     summaryParams.set('from', start);
     summaryParams.set('to', end);
+    const prevBounds = getQuarterBounds(prevYear, prevQuarter);
+    comparisonParams = new URLSearchParams({ period, target: String(target), year: String(prevYear), quarter: String(prevQuarter), from: prevBounds.start, to: prevBounds.end });
   } else if (period === 'yearly' && year) {
-    const start = `${String(year).padStart(4, '0')}-01-01`;
-    const end = `${String(year).padStart(4, '0')}-12-31`;
+    const { start, end } = getYearBounds(year);
     weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}&date=${encodeURIComponent(end)}`;
     summaryParams.set('from', start);
     summaryParams.set('to', end);
+    const prevBounds = getYearBounds(Number(year) - 1);
+    comparisonParams = new URLSearchParams({ period, target: String(target), year: String(Number(year) - 1), from: prevBounds.start, to: prevBounds.end });
+  } else if (period === 'weekly') {
+    const now = new Date();
+    const currentEnd = new Date(now);
+    const previousEnd = new Date(now);
+    previousEnd.setUTCDate(previousEnd.getUTCDate() - 7);
+    comparisonParams = new URLSearchParams({ period, target: String(target), to: previousEnd.toISOString().slice(0, 10) });
+    weeklyPath = `/reports/weekly?days=${lookbackDays}&tz=${encodeURIComponent(tz)}&date=${encodeURIComponent(currentEnd.toISOString().slice(0, 10))}`;
   }
 
-  const [metrics, inventory, report, summary] = await Promise.all([
+  const requests = [
     fetchJson(baseUrl, '/metrics'),
     fetchJson(baseUrl, '/inventory'),
     fetchJson(baseUrl, weeklyPath.trim()),
     fetchJson(baseUrl, `/reports/summary?${summaryParams.toString()}`)
-  ]);
+  ];
+  if (comparisonParams) requests.push(fetchJson(baseUrl, `/reports/summary?${comparisonParams.toString()}`));
+
+  const [metrics, inventory, report, summary, comparisonSummary] = await Promise.all(requests);
 
   const inventoryTotals = sumInventory(inventory);
   const totalRevenue = Number(metrics.totalRevenue || 0);
@@ -193,28 +267,53 @@ export async function sendReport({ period = 'weekly', dryRun = false, year, mont
   const periodRevenue = summary?.totals?.revenue ?? report?.totals?.revenue ?? 0;
   const periodProfit = summary?.totals?.profit ?? report?.totals?.profit ?? 0;
   const periodRoi = summary?.totals?.roi ?? report?.totals?.grossMargin ?? 0;
+  const avgOrderValue = orders > 0 ? periodRevenue / orders : 0;
+  const previousRevenue = comparisonSummary?.totals?.revenue || 0;
+  const previousProfit = comparisonSummary?.totals?.profit || 0;
+  const previousOrders = comparisonSummary?.totals?.count || 0;
+  const previousRoi = comparisonSummary?.totals?.roi || 0;
+  const neededPerDayRevenue = remaining > 0 ? remaining / Math.max(1, daysLeft) : 0;
+  const recommendations = buildRecommendation({
+    periodRevenue,
+    periodProfit,
+    periodRoi,
+    inventoryTotals,
+    forecast: summary?.forecast,
+    previousRevenue,
+    previousProfit
+  });
 
   const summaryLines = [
     `📊 ${PERIODS[period].label}`,
     describePeriod({ period, report, lookbackDays, year, month, quarter }),
-    `Bestellmenge: ${orders}`,
-    `Umsatz: ${formatEuro(periodRevenue)}`,
-    `Gewinn: ${formatEuro(periodProfit)} (${formatPercent(periodRoi * 100)})`,
+    '',
+    '🎯 KPI',
+    `Bestellungen: ${orders} (${buildComparisonLabel(period)} ${formatDelta(orders, previousOrders, 'count')})`,
+    `Umsatz: ${formatEuro(periodRevenue)} (${buildComparisonLabel(period)} ${formatDelta(periodRevenue, previousRevenue)})`,
+    `Gewinn: ${formatEuro(periodProfit)} (${buildComparisonLabel(period)} ${formatDelta(periodProfit, previousProfit)})`,
+    `ROI: ${formatPercent(periodRoi * 100)} (${buildComparisonLabel(period)} ${formatDelta(periodRoi, previousRoi, 'percent')})`,
+    `Ø Bestellwert: ${formatEuro(avgOrderValue)}`,
     topSeller ? `Top-Seller: ${topSeller.title || topSeller.sku || '-'} (${formatEuro(topSeller.profit || 0)} Gewinn)` : 'Top-Seller: -',
     '',
     '📦 Lager',
     `Einstellwert: ${formatEuro(inventoryTotals.listTotal)}`,
     `Einkaufswert: ${formatEuro(inventoryTotals.ekTotal)}`,
+    `Lagerumschlag grob: ${inventoryTotals.listTotal > 0 ? formatPercent((periodRevenue / inventoryTotals.listTotal) * 100) : '0.0%'}`,
     '',
-    '💰 Gesamtstand',
+    '🎯 Ziel & Pace',
     `Gesamtumsatz: ${formatEuro(totalRevenue)}`,
     `Gesamtgewinn: ${formatEuro(totalProfit)}`,
     `Fortschritt 25k-Ziel: ${progressBar}`,
+    `Rest zum Ziel: ${formatEuro(remaining)}`,
+    `Nötige Pace: ${formatEuro(neededPerDayRevenue)}/Tag`,
     `Jahresziel-Wahrscheinlichkeit: ${probability.toFixed(1)}% (${probabilityLabel})`,
     `Monats-Hochrechnung konservativ: ${formatEuro(projectedMonthRevenue)}`,
     `Bestandsdeckel (Einstellwert): ${formatEuro(inventoryCapMonthly)}`,
     '',
-    `🧭 Plan: ${planText}`
+    '🧭 Fokus',
+    ...recommendations.map((item, idx) => `${idx + 1}. ${item}`),
+    '',
+    `Plan: ${planText}`
   ];
 
   const message = summaryLines.join('\n');
